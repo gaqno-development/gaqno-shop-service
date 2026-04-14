@@ -13,6 +13,7 @@ RUN --mount=type=cache,target=/root/.npm \
     npm config set fetch-retries 10 && \
     npm install --legacy-peer-deps --ignore-scripts --include=dev
 
+ARG GAQNO_CACHE_BUST=1
 COPY src ./src
 
 RUN npx nest build
