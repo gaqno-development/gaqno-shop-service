@@ -37,9 +37,10 @@ export class ProductService {
       conditions.push(like(products.name, `%${search}%`));
     }
 
+    const orderByColumn = products[sortBy as keyof typeof products];
     const orderBy = sortOrder === "asc" 
-      ? asc(products[sortBy as keyof typeof products]) 
-      : desc(products[sortBy as keyof typeof products]);
+      ? asc(orderByColumn as any) 
+      : desc(orderByColumn as any);
 
     const items = await this.db.query.products.findMany({
       where: and(...conditions),
@@ -95,6 +96,8 @@ export class ProductService {
     const newProduct: NewProduct = {
       tenantId,
       ...dto,
+      price: dto.price.toString(),
+      compareAtPrice: dto.compareAtPrice?.toString(),
     };
 
     const [product] = await this.db.insert(products).values(newProduct).returning();

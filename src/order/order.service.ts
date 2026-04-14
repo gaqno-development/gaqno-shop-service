@@ -17,7 +17,7 @@ export class OrderService {
     }
 
     if (status) {
-      conditions.push(eq(orders.status, status));
+      conditions.push(eq(orders.status, status as typeof orders.status['_']['data']));
     }
 
     const items = await this.db.query.orders.findMany({

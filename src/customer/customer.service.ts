@@ -15,13 +15,14 @@ export class CustomerService {
     }
 
     if (query.search) {
-      conditions.push(
-        or(
-          like(customers.email, `%${query.search}%`),
-          like(customers.firstName, `%${query.search}%`),
-          like(customers.lastName, `%${query.search}%`)
-        )
+      const searchCondition = or(
+        like(customers.email, `%${query.search}%`),
+        like(customers.firstName, `%${query.search}%`),
+        like(customers.lastName, `%${query.search}%`)
       );
+      if (searchCondition) {
+        conditions.push(searchCondition);
+      }
     }
 
     return this.db.query.customers.findMany({
