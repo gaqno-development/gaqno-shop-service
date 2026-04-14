@@ -1,11 +1,10 @@
 import { Module } from "@nestjs/common";
 import { TenantService } from "./tenant.service";
 import { TenantController } from "./tenant.controller";
-import { TenantContextMiddleware } from "./tenant-context.middleware";
 
 @Module({
-  providers: [TenantService, TenantContextMiddleware],
+  providers: [TenantService],
   controllers: [TenantController],
-  exports: [TenantService, TenantContextMiddleware],
+  exports: [TenantService],
 })
 export class TenantModule {}

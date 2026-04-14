@@ -1,6 +1,7 @@
 import { Injectable, NestMiddleware } from "@nestjs/common";
 import { Request, Response, NextFunction } from "express";
-import { TenantService } from "./tenant.service";
+import { TenantService } from "../tenant/tenant.service";
+import { tenantContextStorage, TenantContext } from "./tenant-context";
 
 @Injectable()
 export class TenantContextMiddleware implements NestMiddleware {
@@ -12,21 +13,28 @@ export class TenantContextMiddleware implements NestMiddleware {
     
     // 2. Try subdomain from host
     const host = req.headers.host || "";
-    const subdomain = host.split(".")[0];
     
     // 3. Resolve tenant
     const lookupDomain = domain || host;
     const tenant = await this.tenantService.resolve(lookupDomain);
     
     if (tenant) {
-      // Set tenant context on request
-      (req as any).tenant = tenant;
+      const context: TenantContext = {
+        tenantId: tenant.id,
+        slug: tenant.slug,
+        domain: tenant.domain,
+        name: tenant.name,
+        isDropshipping: tenant.isDropshipping,
+        orderPrefix: tenant.orderPrefix,
+      };
       
-      // Set Postgres RLS variable (will be used by database queries)
-      // This is a placeholder - actual implementation depends on your DB setup
-      (req as any).tenantId = tenant.id;
+      // Run in tenant context
+      tenantContextStorage.run(context, () => {
+        next();
+      });
+    } else {
+      // No tenant found - continue without context
+      next();
     }
-    
-    next();
   }
 }

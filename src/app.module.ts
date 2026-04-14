@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, NestModule, MiddlewareConsumer } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { ThrottlerModule } from "@nestjs/throttler";
 
@@ -10,6 +10,8 @@ import { OrderModule } from "./order/order.module";
 import { CustomerModule } from "./customer/customer.module";
 import { CartModule } from "./cart/cart.module";
 import { PaymentModule } from "./payment/payment.module";
+import { TenantContextMiddleware } from "./common/middleware/tenant-context.middleware";
+import { TenantService } from "./tenant/tenant.service";
 
 @Module({
   imports: [
@@ -35,6 +37,12 @@ import { PaymentModule } from "./payment/payment.module";
     PaymentModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [TenantContextMiddleware],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(TenantContextMiddleware)
+      .forRoutes("*");
+  }
+}
