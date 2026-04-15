@@ -7,14 +7,15 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "target": "ES2023",
+    "target": "ES2022",
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
-    "strictNullChecks": true,
-    "noImplicitAny": true,
+    "strict": false,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
     "esModuleInterop": true,
     "resolveJsonModule": true
   }

@@ -2,6 +2,7 @@ import { NestFactory } from "@nestjs/core";
 import { ConfigService } from "@nestjs/config";
 import { ValidationPipe } from "@nestjs/common";
 import { Request, Response, NextFunction } from "express";
+import { runMigrations } from "./database/migrate";
 import { AppModule } from "./app.module";
 
 function stripPrefix(req: Request, _res: Response, next: NextFunction): void {
@@ -12,6 +13,15 @@ function stripPrefix(req: Request, _res: Response, next: NextFunction): void {
 }
 
 async function bootstrap(): Promise<void> {
+  const configService = new ConfigService();
+  const databaseUrl = configService.get<string>("DATABASE_URL") ?? process.env.DATABASE_URL ?? "";
+  
+  if (databaseUrl) {
+    await runMigrations(databaseUrl);
+  } else {
+    console.warn("⚠️  DATABASE_URL not set, skipping migrations");
+  }
+  
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
 

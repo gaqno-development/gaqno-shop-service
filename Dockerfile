@@ -24,6 +24,7 @@ ARG NPM_TOKEN
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/.npmrc* ./
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/database/migrations ./dist/database/migrations
 
 RUN if [ -n "$NPM_TOKEN" ]; then echo "//npm.pkg.github.com/:_authToken=$NPM_TOKEN" >> .npmrc 2>/dev/null || true; fi
 RUN npm config set fetch-timeout 1200000 && \

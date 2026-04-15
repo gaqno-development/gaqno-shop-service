@@ -361,6 +361,75 @@ export const carts = pgTable(
   })
 );
 
+// Customer sessions for JWT refresh tokens
+export const customerSessions = pgTable(
+  "customer_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    token: varchar("token", { length: 255 }).notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+    lastUsedAt: timestamp("last_used_at").defaultNow(),
+    ipAddress: varchar("ip_address", { length: 45 }),
+    userAgent: text("user_agent"),
+  },
+  (table) => ({
+    tenantIdx: index("sessions_tenant_idx").on(table.tenantId),
+    customerIdx: index("sessions_customer_idx").on(table.customerId),
+    tokenIdx: uniqueIndex("sessions_token_idx").on(table.token),
+  })
+);
+
+// Customer email verifications
+export const customerEmailVerifications = pgTable(
+  "customer_email_verifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    token: varchar("token", { length: 255 }).notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+    usedAt: timestamp("used_at"),
+  },
+  (table) => ({
+    tenantIdx: index("email_verif_tenant_idx").on(table.tenantId),
+    tokenIdx: uniqueIndex("email_verif_token_idx").on(table.token),
+  })
+);
+
+// Customer password resets
+export const customerPasswordResets = pgTable(
+  "customer_password_resets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    token: varchar("token", { length: 255 }).notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+    usedAt: timestamp("used_at"),
+  },
+  (table) => ({
+    tenantIdx: index("password_reset_tenant_idx").on(table.tenantId),
+    tokenIdx: uniqueIndex("password_reset_token_idx").on(table.token),
+  })
+);
+
 // Type exports
 export type Tenant = typeof tenants.$inferSelect;
 export type NewTenant = typeof tenants.$inferInsert;
@@ -377,3 +446,6 @@ export type Order = typeof orders.$inferSelect;
 export type NewOrder = typeof orders.$inferInsert;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type Cart = typeof carts.$inferSelect;
+export type CustomerSession = typeof customerSessions.$inferSelect;
+export type CustomerEmailVerification = typeof customerEmailVerifications.$inferSelect;
+export type CustomerPasswordReset = typeof customerPasswordResets.$inferSelect;

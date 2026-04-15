@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import * as schema from "./schema";
+import { DrizzleService } from "./drizzle.service";
 
 @Global()
 @Module({
@@ -17,7 +18,8 @@ import * as schema from "./schema";
         return drizzle(client, { schema });
       },
     },
+    DrizzleService,
   ],
-  exports: ["DATABASE"],
+  exports: ["DATABASE", DrizzleService],
 })
 export class DatabaseModule {}

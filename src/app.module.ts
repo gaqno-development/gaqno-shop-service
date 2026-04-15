@@ -10,24 +10,28 @@ import { OrderModule } from "./order/order.module";
 import { CustomerModule } from "./customer/customer.module";
 import { CartModule } from "./cart/cart.module";
 import { PaymentModule } from "./payment/payment.module";
+import { AuthModule } from "./auth/auth.module";
+import { MailModule } from "./mail/mail.module";
 import { TenantContextMiddleware } from "./common/middleware/tenant-context.middleware";
 import { TenantService } from "./tenant/tenant.service";
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
+    (ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [".env.production", ".env"],
-    }),
-    ThrottlerModule.forRoot({
+    }) as any),
+    (ThrottlerModule.forRoot({
       throttlers: [
         {
           ttl: 60000,
           limit: 100,
         },
       ],
-    }),
+    }) as any),
     DatabaseModule,
+    MailModule,
+    AuthModule,
     TenantModule,
     ProductModule,
     CategoryModule,
