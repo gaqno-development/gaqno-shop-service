@@ -34,5 +34,5 @@ ENV NODE_ENV=production
 ENV PORT=4017
 EXPOSE 4017
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD wget -q -O /dev/null "http://127.0.0.1:4017/v1" || exit 1
+  CMD wget -q -O /dev/null "http://127.0.0.1:4017/v1/products?limit=1" || exit 1
 CMD ["node", "dist/main.js"]
