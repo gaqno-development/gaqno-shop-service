@@ -54,5 +54,7 @@ async function bootstrap(): Promise<void> {
   console.log(`🛍️  Multi-tenant shop platform ready!`);
 }
 
-bootstrap();
-// Cache bust: 1776208809
+bootstrap().catch((err) => {
+  console.error("Failed to start application:", err);
+  process.exit(1);
+});
