@@ -309,7 +309,7 @@ FROM tenants WHERE slug = 'gaqno-shop';
 
 -- Insert Fifia Doces tenant
 INSERT INTO tenants (slug, name, domain, order_prefix, primary_color, bg_color, secondary_color, is_active, settings) VALUES
-('fifia-doces', 'Fifia Doces', 'fifiadoces.com.br', 'FIFIA', true, '#e11d48', '#fffbf7', '#f9a8d4', '{"defaultCurrency": "BRL"}');
+('fifia-doces', 'Fifia Doces', 'fifiadoces.com.br', 'FIFIA', '#e11d48', '#fffbf7', '#f9a8d4', true, '{"defaultCurrency": "BRL"}');
 
 -- Insert feature flags for Fifia Doces
 INSERT INTO tenant_feature_flags (tenant_id, feature_shipping, feature_decorations, feature_coupons, feature_recipes, feature_inventory, feature_checkout_pro, feature_pix, feature_dropshipping)

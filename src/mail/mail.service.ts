@@ -53,4 +53,13 @@ export class MailService {
       `,
     });
   }
+
+  async sendMail(options: { to: string; subject: string; html: string }) {
+    await this.transporter.sendMail({
+      from: `"${this.configService.get('EMAIL_FROM_NAME')}" <${this.configService.get('EMAIL_FROM')}>`,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+    });
+  }
 }

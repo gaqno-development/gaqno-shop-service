@@ -176,11 +176,28 @@ export class OrderService {
     return `${prefix}-${paddedNumber}`;
   }
 
-  async getCustomerOrders(tenantId: string, customerId: string, limit = 10) {
-    return this.db.query.orders.findMany({
-      where: and(eq(orders.tenantId, tenantId), eq(orders.customerId, customerId)),
+  async getCustomerOrders(
+    tenantId: string,
+    customerId: string,
+    options: { page: number; limit: number; status?: string }
+  ) {
+    const { page, limit, status } = options;
+    const offset = (page - 1) * limit;
+
+    const conditions = [
+      eq(orders.tenantId, tenantId),
+      eq(orders.customerId, customerId),
+    ];
+
+    if (status) {
+      conditions.push(eq(orders.status, status as any));
+    }
+
+    const items = await this.db.query.orders.findMany({
+      where: and(...conditions),
       limit,
-      orderBy: desc(orders.createdAt),
+      offset,
+      orderBy: [desc(orders.createdAt)],
       with: {
         items: {
           columns: {
@@ -193,5 +210,77 @@ export class OrderService {
         },
       },
     });
+
+    const total = await this.db
+      .select({ count: sql`count(*)::int` })
+      .from(orders)
+      .where(and(...conditions));
+
+    return {
+      items: items.map((order: any) => ({
+        ...order,
+        items: order.items?.length || 0,
+      })),
+      total: total[0]?.count || 0,
+      page,
+      limit,
+      totalPages: Math.ceil((total[0]?.count || 0) / limit),
+    };
+  }
+
+  async getCustomerOrderDetail(tenantId: string, customerId: string, orderId: string) {
+    const order = await this.db.query.orders.findFirst({
+      where: and(
+        eq(orders.tenantId, tenantId),
+        eq(orders.id, orderId),
+        eq(orders.customerId, customerId)
+      ),
+      with: {
+        items: true,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Pedido não encontrado');
+    }
+
+    // Get status history
+    const history = await this.db.query.orderStatusHistory.findMany({
+      where: and(
+        eq(orderStatusHistory.tenantId, tenantId),
+        eq(orderStatusHistory.orderId, orderId)
+      ),
+      orderBy: [desc(orderStatusHistory.createdAt)],
+    });
+
+    return {
+      ...order,
+      statusHistory: history,
+    };
+  }
+
+  async trackOrder(tenantId: string, orderNumber: string, email: string) {
+    const order = await this.db.query.orders.findFirst({
+      where: and(
+        eq(orders.tenantId, tenantId),
+        eq(orders.orderNumber, orderNumber)
+      ),
+      with: {
+        customer: true,
+        items: true,
+      },
+    });
+
+    if (!order || order.customer?.email !== email) {
+      throw new NotFoundException('Pedido não encontrado');
+    }
+
+    return {
+      orderNumber: order.orderNumber,
+      status: order.status,
+      createdAt: order.createdAt,
+      total: order.total,
+      items: order.items,
+    };
   }
 }

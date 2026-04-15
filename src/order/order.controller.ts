@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Put, Body, Param, Query, ParseUUIDPipe } from "@nestjs/common";
+import { Controller, Get, Post, Put, Body, Param, Query, ParseUUIDPipe, UseGuards, Request } from "@nestjs/common";
 import { OrderService } from "./order.service";
 import { CreateOrderDto, UpdateOrderStatusDto, OrderQueryDto } from "./dto/order.dto";
 import { CurrentTenant } from "../common/decorators/current-tenant.decorator";
 import { TenantContext } from "../common/tenant-context";
+import { AuthGuard } from "../auth/auth.guard";
 
 @Controller("orders")
 export class OrderController {
@@ -20,10 +21,11 @@ export class OrderController {
   }
 
   @Get("customer/:customerId")
-  async getCustomerOrders(
+  async getCustomerOrdersById(
     @CurrentTenant() tenant: TenantContext,
     @Param("customerId", ParseUUIDPipe) customerId: string,
-    @Query("limit") limit?: string
+    @Query("page") page: string = "1",
+    @Query("limit") limit: string = "10"
   ) {
     if (!tenant) {
       return { error: "Tenant not found" };
@@ -31,7 +33,10 @@ export class OrderController {
     return this.orderService.getCustomerOrders(
       tenant.tenantId,
       customerId,
-      limit ? parseInt(limit) : 10
+      {
+        page: parseInt(page),
+        limit: parseInt(limit),
+      }
     );
   }
 
@@ -67,5 +72,49 @@ export class OrderController {
       return { error: "Tenant not found" };
     }
     return this.orderService.updateStatus(tenant.tenantId, orderNumber, dto);
+  }
+
+  // Customer authenticated endpoints
+  @Get("my-orders")
+  @UseGuards(AuthGuard)
+  async getMyOrders(
+    @CurrentTenant() tenant: TenantContext,
+    @Request() req,
+    @Query("page") page: string = "1",
+    @Query("limit") limit: string = "10",
+    @Query("status") status?: string,
+  ) {
+    return this.orderService.getCustomerOrders(
+      tenant.tenantId,
+      req.customer.customerId,
+      {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        status,
+      }
+    );
+  }
+
+  @Get("my-orders/:id")
+  @UseGuards(AuthGuard)
+  async getMyOrderDetail(
+    @CurrentTenant() tenant: TenantContext,
+    @Request() req,
+    @Param("id", ParseUUIDPipe) orderId: string,
+  ) {
+    return this.orderService.getCustomerOrderDetail(
+      tenant.tenantId,
+      req.customer.customerId,
+      orderId
+    );
+  }
+
+  @Get("track/:orderNumber")
+  async trackOrder(
+    @CurrentTenant() tenant: TenantContext,
+    @Param("orderNumber") orderNumber: string,
+    @Query("email") email: string,
+  ) {
+    return this.orderService.trackOrder(tenant.tenantId, orderNumber, email);
   }
 }

@@ -12,6 +12,7 @@ import { CartModule } from "./cart/cart.module";
 import { PaymentModule } from "./payment/payment.module";
 import { AuthModule } from "./auth/auth.module";
 import { MailModule } from "./mail/mail.module";
+import { ShippingModule } from "./shipping/shipping.module";
 import { TenantContextMiddleware } from "./common/middleware/tenant-context.middleware";
 import { TenantService } from "./tenant/tenant.service";
 
@@ -39,6 +40,7 @@ import { TenantService } from "./tenant/tenant.service";
     CustomerModule,
     CartModule,
     PaymentModule,
+    ShippingModule,
   ],
   controllers: [],
   providers: [TenantContextMiddleware],
