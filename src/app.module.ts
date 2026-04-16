@@ -13,6 +13,9 @@ import { PaymentModule } from "./payment/payment.module";
 import { AuthModule } from "./auth/auth.module";
 import { MailModule } from "./mail/mail.module";
 import { ShippingModule } from "./shipping/shipping.module";
+import { LoyaltyModule } from "./loyalty/loyalty.module";
+import { WishlistModule } from "./wishlist/wishlist.module";
+import { AnalyticsModule } from "./analytics/analytics.module";
 import { TenantContextMiddleware } from "./common/middleware/tenant-context.middleware";
 import { TenantService } from "./tenant/tenant.service";
 
@@ -41,6 +44,9 @@ import { TenantService } from "./tenant/tenant.service";
     CartModule,
     PaymentModule,
     ShippingModule,
+    LoyaltyModule,
+    WishlistModule,
+    AnalyticsModule,
   ],
   controllers: [],
   providers: [TenantContextMiddleware],

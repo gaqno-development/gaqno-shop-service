@@ -506,3 +506,154 @@ export const shippingRatesCache = pgTable(
 export type ShippingMethod = typeof shippingMethods.$inferSelect;
 export type NewShippingMethod = typeof shippingMethods.$inferInsert;
 export type ShippingRatesCache = typeof shippingRatesCache.$inferSelect;
+
+// Loyalty Program
+export const customerPoints = pgTable(
+  "customer_points",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    balance: integer("balance").notNull().default(0),
+    lifetimeEarned: integer("lifetime_earned").notNull().default(0),
+    lifetimeRedeemed: integer("lifetime_redeemed").notNull().default(0),
+    tier: varchar("tier", { length: 20 }).default("bronze"), // bronze, silver, gold, platinum
+    tierExpiresAt: timestamp("tier_expires_at"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    tenantIdx: index("customer_points_tenant_idx").on(table.tenantId),
+    customerIdx: uniqueIndex("customer_points_customer_idx").on(table.tenantId, table.customerId),
+  })
+);
+
+export const pointsTransactions = pgTable(
+  "points_transactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
+    type: varchar("type", { length: 20 }).notNull(), // earn, redeem, expire, bonus, adjustment
+    amount: integer("amount").notNull(), // positive for earn/bonus, negative for redeem/expire
+    description: varchar("description", { length: 255 }),
+    referenceId: varchar("reference_id", { length: 100 }), // for external references
+    expiresAt: timestamp("expires_at"), // points expiration
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    tenantIdx: index("points_transactions_tenant_idx").on(table.tenantId),
+    customerIdx: index("points_transactions_customer_idx").on(table.customerId),
+    orderIdx: index("points_transactions_order_idx").on(table.orderId),
+    createdAtIdx: index("points_transactions_created_idx").on(table.createdAt),
+  })
+);
+
+export const pointsRedemptionHistory = pgTable(
+  "points_redemption_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
+    pointsRedeemed: integer("points_redeemed").notNull(),
+    discountReceived: decimal("discount_received", { precision: 10, scale: 2 }).notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    tenantIdx: index("points_redemption_tenant_idx").on(table.tenantId),
+    customerIdx: index("points_redemption_customer_idx").on(table.customerId),
+  })
+);
+
+export const customerTierRules = pgTable(
+  "customer_tier_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    tier: varchar("tier", { length: 20 }).notNull(), // bronze, silver, gold, platinum
+    minPoints: integer("min_points").notNull(),
+    pointsMultiplier: decimal("points_multiplier", { precision: 3, scale: 2 }).default("1.00"), // e.g., 1.5 for gold
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    tenantIdx: index("tier_rules_tenant_idx").on(table.tenantId),
+    tierIdx: index("tier_rules_tier_idx").on(table.tenantId, table.tier),
+  })
+);
+
+// Type exports for loyalty
+export type CustomerPoints = typeof customerPoints.$inferSelect;
+export type NewCustomerPoints = typeof customerPoints.$inferInsert;
+export type PointsTransaction = typeof pointsTransactions.$inferSelect;
+export type NewPointsTransaction = typeof pointsTransactions.$inferInsert;
+export type PointsRedemptionHistory = typeof pointsRedemptionHistory.$inferSelect;
+export type NewPointsRedemptionHistory = typeof pointsRedemptionHistory.$inferInsert;
+export type CustomerTierRule = typeof customerTierRules.$inferSelect;
+export type NewCustomerTierRule = typeof customerTierRules.$inferInsert;
+
+// Wishlist
+export const wishlists = pgTable(
+  "wishlists",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 100 }).default("Favoritos"),
+    isPublic: boolean("is_public").default(false),
+    shareToken: varchar("share_token", { length: 64 }),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    tenantIdx: index("wishlists_tenant_idx").on(table.tenantId),
+    customerIdx: index("wishlists_customer_idx").on(table.customerId),
+    shareTokenIdx: uniqueIndex("wishlists_share_token_idx").on(table.shareToken),
+  })
+);
+
+export const wishlistItems = pgTable(
+  "wishlist_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    wishlistId: uuid("wishlist_id")
+      .notNull()
+      .references(() => wishlists.id, { onDelete: "cascade" }),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    note: text("note"),
+    sortOrder: integer("sort_order").default(0),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    wishlistIdx: index("wishlist_items_wishlist_idx").on(table.wishlistId),
+    productIdx: index("wishlist_items_product_idx").on(table.productId),
+    wishlistProductIdx: uniqueIndex("wishlist_items_unique_idx").on(table.wishlistId, table.productId),
+  })
+);
+
+export type Wishlist = typeof wishlists.$inferSelect;
+export type NewWishlist = typeof wishlists.$inferInsert;
+export type WishlistItem = typeof wishlistItems.$inferSelect;
+export type NewWishlistItem = typeof wishlistItems.$inferInsert;
