@@ -114,3 +114,24 @@ describe("FxRateService", () => {
     await expect(service.getRate("USD", "BRL")).rejects.toThrow(/fx rate/i);
   });
 });
+
+import { Test } from "@nestjs/testing";
+import { FX_RATE_FETCHER, FX_RATE_REPOSITORY } from "./fx-rate.types";
+
+describe("FxRateService Nest DI", () => {
+  it("should be resolvable by Nest with only repo + fetcher registered (clock is optional)", async () => {
+    const repo = createRepo();
+    const fetcher = new MockFxRateFetcher();
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        FxRateService,
+        { provide: FX_RATE_REPOSITORY, useValue: repo },
+        { provide: FX_RATE_FETCHER, useValue: fetcher },
+      ],
+    }).compile();
+
+    const service = moduleRef.get(FxRateService);
+    expect(service).toBeInstanceOf(FxRateService);
+  });
+});

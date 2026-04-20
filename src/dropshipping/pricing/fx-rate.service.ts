@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import {
   FX_RATE_FETCHER,
   FX_RATE_REPOSITORY,
@@ -10,15 +10,23 @@ export type ClockFn = () => Date;
 
 export const DEFAULT_CLOCK: ClockFn = () => new Date();
 
+export const FX_RATE_CLOCK = Symbol("FX_RATE_CLOCK");
+
 @Injectable()
 export class FxRateService {
+  private readonly clock: ClockFn;
+
   constructor(
     @Inject(FX_RATE_REPOSITORY)
     private readonly repo: FxRateRepositoryPort,
     @Inject(FX_RATE_FETCHER)
     private readonly fetcher: FxRateFetcherPort,
-    private readonly clock: ClockFn = DEFAULT_CLOCK,
-  ) {}
+    @Optional()
+    @Inject(FX_RATE_CLOCK)
+    clock?: ClockFn,
+  ) {
+    this.clock = clock ?? DEFAULT_CLOCK;
+  }
 
   async getRate(from: string, to: string): Promise<number> {
     const currencyFrom = from.toUpperCase();

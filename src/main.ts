@@ -2,6 +2,7 @@ import { NestFactory } from "@nestjs/core";
 import { ConfigService } from "@nestjs/config";
 import { ValidationPipe } from "@nestjs/common";
 import { Request, Response, NextFunction } from "express";
+import { getCorsOptions } from "@gaqno-development/backcore";
 import { runMigrations } from "./database/migrate";
 import { AppModule } from "./app.module";
 
@@ -27,27 +28,28 @@ async function bootstrap(): Promise<void> {
 
   app.use(stripPrefix);
 
-  const corsOrigin =
-    config.get<string>("CORS_ORIGIN") ??
-    process.env.CORS_ORIGIN ??
-    "*";
-  
-  app.enableCors({
-    origin:
-      corsOrigin === "*"
-        ? true
-        : corsOrigin.split(",").map((item) => item.trim()),
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-Requested-With",
-      "X-Tenant-Domain",
-      "Referer",
-      "User-Agent",
-    ],
-  });
+  app.enableCors(
+    getCorsOptions(config as unknown as Parameters<typeof getCorsOptions>[0], {
+      allowedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "X-Tenant-Domain",
+        "Referer",
+        "User-Agent",
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform",
+        "Origin",
+        "Accept",
+        "newrelic",
+        "traceparent",
+        "tracestate",
+        "x-tenant-id",
+        "x-user-id",
+      ],
+    }),
+  );
 
   app.setGlobalPrefix("v1");
   app.useGlobalPipes(new ValidationPipe({ 
