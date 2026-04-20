@@ -1,6 +1,7 @@
 import { Module, NestModule, MiddlewareConsumer } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { ThrottlerModule } from "@nestjs/throttler";
+import { EventEmitterModule } from "@nestjs/event-emitter";
 
 import { DatabaseModule } from "./database/database.module";
 import { TenantModule } from "./tenant/tenant.module";
@@ -16,23 +17,25 @@ import { ShippingModule } from "./shipping/shipping.module";
 import { LoyaltyModule } from "./loyalty/loyalty.module";
 import { WishlistModule } from "./wishlist/wishlist.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
+import { DropshippingModule } from "./dropshipping/dropshipping.module";
 import { TenantContextMiddleware } from "./common/middleware/tenant-context.middleware";
 import { TenantService } from "./tenant/tenant.service";
 
 @Module({
   imports: [
-    (ConfigModule.forRoot({
+    ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [".env.production", ".env"],
-    }) as any),
-    (ThrottlerModule.forRoot({
+    }) as never,
+    ThrottlerModule.forRoot({
       throttlers: [
         {
           ttl: 60000,
           limit: 100,
         },
       ],
-    }) as any),
+    }) as never,
+    EventEmitterModule.forRoot() as never,
     DatabaseModule,
     MailModule,
     AuthModule,
@@ -47,6 +50,7 @@ import { TenantService } from "./tenant/tenant.service";
     LoyaltyModule,
     WishlistModule,
     AnalyticsModule,
+    DropshippingModule,
   ],
   controllers: [],
   providers: [TenantContextMiddleware],

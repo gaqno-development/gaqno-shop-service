@@ -3,7 +3,13 @@ import {
   Get,
   Query,
 } from '@nestjs/common';
-import { AnalyticsService, DashboardStats, RevenueData, TopProduct, SalesByCategory } from './analytics.service';
+import { AnalyticsService } from './analytics.service';
+import {
+  DashboardStats,
+  RevenueData,
+  SalesByCategory,
+  TopProduct,
+} from './analytics.types';
 
 @Controller('analytics')
 export class AnalyticsController {

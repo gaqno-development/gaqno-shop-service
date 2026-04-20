@@ -1,11 +1,21 @@
 import { Injectable, Inject, NotFoundException } from "@nestjs/common";
-import { eq, and, like, desc, asc, SQL } from "drizzle-orm";
-import { products, categories, Product, NewProduct } from "../database/schema";
+import { eq, and, like, desc, asc, SQL, sql } from "drizzle-orm";
+import { products, Product, NewProduct } from "../database/schema";
+import { ShopDatabase } from "../database/shop-database.type";
 import { CreateProductDto, UpdateProductDto, ProductQueryDto } from "./dto/product.dto";
+
+type ProductSortColumn = "createdAt" | "name" | "price" | "updatedAt";
+
+const PRODUCT_SORT_COLUMNS = {
+  createdAt: products.createdAt,
+  name: products.name,
+  price: products.price,
+  updatedAt: products.updatedAt,
+} as const satisfies Record<ProductSortColumn, unknown>;
 
 @Injectable()
 export class ProductService {
-  constructor(@Inject("DATABASE") private db: any) {}
+  constructor(@Inject("DATABASE") private readonly db: ShopDatabase) {}
 
   async findAll(tenantId: string, query: ProductQueryDto) {
     const {
@@ -37,10 +47,9 @@ export class ProductService {
       conditions.push(like(products.name, `%${search}%`));
     }
 
-    const orderByColumn = products[sortBy as keyof typeof products];
-    const orderBy = sortOrder === "asc" 
-      ? asc(orderByColumn as any) 
-      : desc(orderByColumn as any);
+    const orderByColumn =
+      PRODUCT_SORT_COLUMNS[sortBy as ProductSortColumn] ?? products.createdAt;
+    const orderBy = sortOrder === "asc" ? asc(orderByColumn) : desc(orderByColumn);
 
     const items = await this.db.query.products.findMany({
       where: and(...conditions),
@@ -107,12 +116,16 @@ export class ProductService {
   async update(tenantId: string, id: string, dto: UpdateProductDto): Promise<Product> {
     await this.findById(tenantId, id);
 
+    const { price, ...rest } = dto;
+    const payload: Partial<NewProduct> & { updatedAt: Date } = {
+      ...rest,
+      updatedAt: new Date(),
+    };
+    if (price !== undefined) payload.price = price.toString();
+
     const [product] = await this.db
       .update(products)
-      .set({
-        ...dto,
-        updatedAt: new Date(),
-      })
+      .set(payload)
       .where(and(eq(products.tenantId, tenantId), eq(products.id, id)))
       .returning();
 
@@ -139,6 +152,3 @@ export class ProductService {
     });
   }
 }
-
-// Helper for sql count
-import { sql } from "drizzle-orm";

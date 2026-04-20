@@ -1,267 +1,101 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
   Body,
-  Param,
-  Query,
-  UseGuards,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
   ParseUUIDPipe,
-} from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { DrizzleService } from '../database/drizzle.service';
-import { ShippingCalculatorService, CalculatedRate } from './shipping-calculator.service';
+  Post,
+  Put,
+  Query,
+} from "@nestjs/common";
+import { ShippingCalculatorService } from "./shipping-calculator.service";
+import { ShippingMethodService } from "./shipping-method.service";
 import {
-  shippingMethods,
-  shippingRatesCache,
-  tenants,
-} from '../database/schema';
-import { eq, and } from 'drizzle-orm';
-import { IsEmail, IsString, IsOptional, IsBoolean, IsNumber } from 'class-validator';
+  CalculateShippingDto,
+  CreateShippingMethodDto,
+  UpdateShippingMethodDto,
+} from "./dto/shipping.dto";
 
-class CreateShippingMethodDto {
-  @IsString()
-  name: string;
-
-  @IsString()
-  carrier: string;
-
-  @IsOptional()
-  @IsString()
-  serviceCode?: string;
-
-  @IsOptional()
-  @IsNumber()
-  flatRate?: number;
-
-  @IsOptional()
-  @IsNumber()
-  sortOrder?: number;
-
-  @IsOptional()
-  @IsNumber()
-  estimatedDeliveryDaysMin?: number;
-
-  @IsOptional()
-  @IsNumber()
-  estimatedDeliveryDaysMax?: number;
-
-  @IsOptional()
-  @IsNumber()
-  freeShippingThreshold?: number;
-
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
-}
-
-class UpdateShippingMethodDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsString()
-  carrier?: string;
-
-  @IsOptional()
-  @IsString()
-  serviceCode?: string;
-
-  @IsOptional()
-  @IsNumber()
-  flatRate?: number;
-
-  @IsOptional()
-  @IsNumber()
-  sortOrder?: number;
-
-  @IsOptional()
-  @IsNumber()
-  estimatedDeliveryDaysMin?: number;
-
-  @IsOptional()
-  @IsNumber()
-  estimatedDeliveryDaysMax?: number;
-
-  @IsOptional()
-  @IsNumber()
-  freeShippingThreshold?: number;
-
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
-}
-
-class CalculateShippingDto {
-  @IsString()
-  cepDestino: string;
-
-  @IsString()
-  productId: string;
-
-  @IsOptional()
-  @IsNumber()
-  quantity?: number;
-
-  @IsOptional()
-  @IsNumber()
-  subtotal?: number;
-}
-
-@Controller('shipping')
+@Controller("shipping")
 export class ShippingController {
   constructor(
-    private readonly drizzle: DrizzleService,
+    private readonly shippingMethodService: ShippingMethodService,
     private readonly shippingCalculator: ShippingCalculatorService,
   ) {}
 
-  @Get('methods')
-  async getShippingMethods(@Query('tenantId') tenantId: string) {
-    const methods = await this.drizzle.db.query.shippingMethods.findMany({
-      where: and(
-        eq(shippingMethods.tenantId, tenantId),
-      ),
-      orderBy: shippingMethods.sortOrder,
-    });
-
-    return { data: methods };
+  @Get("methods")
+  async getShippingMethods(@Query("tenantId") tenantId: string) {
+    const data = await this.shippingMethodService.listMethods(tenantId);
+    return { data };
   }
 
-  @Post('methods')
+  @Post("methods")
   async createShippingMethod(
-    @Query('tenantId') tenantId: string,
+    @Query("tenantId") tenantId: string,
     @Body() dto: CreateShippingMethodDto,
   ) {
-    const slug = dto.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    
-    const [method] = await this.drizzle.db
-      .insert(shippingMethods)
-      .values({
-        tenantId,
-        name: dto.name,
-        slug,
-        carrier: dto.carrier,
-        serviceCode: dto.serviceCode || null,
-        flatRate: dto.flatRate ? dto.flatRate.toString() : null,
-        sortOrder: dto.sortOrder || 0,
-        estimatedDeliveryDaysMin: dto.estimatedDeliveryDaysMin || 1,
-        estimatedDeliveryDaysMax: dto.estimatedDeliveryDaysMax || 7,
-        freeShippingThreshold: dto.freeShippingThreshold ? dto.freeShippingThreshold.toString() : null,
-        isActive: dto.isActive ?? true,
-      })
-      .returning();
-
-    return { data: method };
+    const data = await this.shippingMethodService.createMethod(tenantId, dto);
+    return { data };
   }
 
-  @Get('methods/:id')
+  @Get("methods/:id")
   async getShippingMethod(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Query('tenantId') tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query("tenantId") tenantId: string,
   ) {
-    const method = await this.drizzle.db.query.shippingMethods.findFirst({
-      where: and(
-        eq(shippingMethods.id, id),
-        eq(shippingMethods.tenantId, tenantId),
-      ),
-    });
-
-    return { data: method };
+    const data = await this.shippingMethodService.findMethod(tenantId, id);
+    return { data };
   }
 
-  @Put('methods/:id')
+  @Put("methods/:id")
   async updateShippingMethod(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Query('tenantId') tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query("tenantId") tenantId: string,
     @Body() dto: UpdateShippingMethodDto,
   ) {
-    const updateData: Record<string, any> = { ...dto };
-    
-    if (updateData.flatRate !== undefined) {
-      updateData.flatRate = updateData.flatRate?.toString() ?? null;
-    }
-    if (updateData.freeShippingThreshold !== undefined) {
-      updateData.freeShippingThreshold = updateData.freeShippingThreshold?.toString() ?? null;
-    }
-
-    const [updated] = await this.drizzle.db
-      .update(shippingMethods)
-      .set(updateData)
-      .where(
-        and(
-          eq(shippingMethods.id, id),
-          eq(shippingMethods.tenantId, tenantId),
-        ),
-      )
-      .returning();
-
-    return { data: updated };
+    const data = await this.shippingMethodService.updateMethod(tenantId, id, dto);
+    return { data };
   }
 
-  @Delete('methods/:id')
+  @Delete("methods/:id")
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteShippingMethod(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Query('tenantId') tenantId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query("tenantId") tenantId: string,
   ) {
-    await this.drizzle.db
-      .delete(shippingMethods)
-      .where(
-        and(
-          eq(shippingMethods.id, id),
-          eq(shippingMethods.tenantId, tenantId),
-        ),
-      );
+    await this.shippingMethodService.deleteMethod(tenantId, id);
   }
 
-  @Post('calculate')
+  @Post("calculate")
   async calculateShipping(
-    @Query('tenantId') tenantId: string,
+    @Query("tenantId") tenantId: string,
     @Body() dto: CalculateShippingDto,
   ) {
-    const items = [{
-      productId: dto.productId,
-      quantity: dto.quantity || 1,
-    }];
-
-    const rates = await this.shippingCalculator.calculateShipping(
+    const items = [{ productId: dto.productId, quantity: dto.quantity ?? 1 }];
+    const data = await this.shippingCalculator.calculateShipping(
       tenantId,
       dto.cepDestino,
       items,
-      dto.subtotal || 0,
+      dto.subtotal ?? 0,
     );
-
-    return { data: rates };
+    return { data };
   }
 
-  @Get('cache')
+  @Get("cache")
   async getCachedRates(
-    @Query('tenantId') tenantId: string,
-    @Query('cep') cep: string,
+    @Query("tenantId") tenantId: string,
+    @Query("cep") cep: string,
   ) {
-    const rates = await this.drizzle.db.query.shippingRatesCache.findMany({
-      where: and(
-        eq(shippingRatesCache.tenantId, tenantId),
-        eq(shippingRatesCache.cep, cep.replace(/\D/g, '')),
-      ),
-      orderBy: shippingRatesCache.expiresAt,
-    });
-
-    return { data: rates };
+    const data = await this.shippingMethodService.getCachedRates(tenantId, cep);
+    return { data };
   }
 
-  @Delete('cache')
+  @Delete("cache")
   @HttpCode(HttpStatus.NO_CONTENT)
-  async clearCache(
-    @Query('tenantId') tenantId: string,
-  ) {
-    await this.drizzle.db
-      .delete(shippingRatesCache)
-      .where(eq(shippingRatesCache.tenantId, tenantId));
+  async clearCache(@Query("tenantId") tenantId: string) {
+    await this.shippingMethodService.clearCache(tenantId);
   }
 }

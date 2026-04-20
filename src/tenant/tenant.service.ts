@@ -1,28 +1,27 @@
-import { Injectable } from "@nestjs/common";
-import { Inject } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
+import { eq } from "drizzle-orm";
+import { tenantFeatureFlags, tenants } from "../database/schema";
+import { ShopDatabase } from "../database/shop-database.type";
 
 @Injectable()
 export class TenantService {
-  constructor(@Inject("DATABASE") private db: any) {}
+  constructor(@Inject("DATABASE") private readonly db: ShopDatabase) {}
 
-  async resolve(domain: string) {
-    const tenant = await this.db.query.tenants.findFirst({
-      where: (tenants: any, { eq }: any) => eq(tenants.domain, domain),
+  resolve(domain: string) {
+    return this.db.query.tenants.findFirst({
+      where: eq(tenants.domain, domain),
     });
-    return tenant;
   }
 
-  async getBySlug(slug: string) {
-    const tenant = await this.db.query.tenants.findFirst({
-      where: (tenants: any, { eq }: any) => eq(tenants.slug, slug),
+  getBySlug(slug: string) {
+    return this.db.query.tenants.findFirst({
+      where: eq(tenants.slug, slug),
     });
-    return tenant;
   }
 
-  async getFeatureFlags(tenantId: string) {
-    const flags = await this.db.query.tenantFeatureFlags.findFirst({
-      where: (flags: any, { eq }: any) => eq(flags.tenantId, tenantId),
+  getFeatureFlags(tenantId: string) {
+    return this.db.query.tenantFeatureFlags.findFirst({
+      where: eq(tenantFeatureFlags.tenantId, tenantId),
     });
-    return flags;
   }
 }

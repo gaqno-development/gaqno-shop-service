@@ -1,141 +1,131 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Delete,
   Body,
-  Query,
+  Controller,
+  Delete,
+  Get,
   Param,
   ParseUUIDPipe,
-  UseGuards,
-} from '@nestjs/common';
-import { WishlistService, WishlistWithItems, WishlistItemDetail } from './wishlist.service';
-import { IsString, IsOptional, IsBoolean, IsUUID } from 'class-validator';
+  Post,
+  Query,
+} from "@nestjs/common";
+import { WishlistService } from "./wishlist.service";
+import { WishlistItemsService } from "./wishlist-items.service";
+import {
+  AddWishlistItemDto,
+  CreateWishlistDto,
+  UpdateWishlistDto,
+} from "./dto/wishlist.dto";
+import {
+  WishlistItemDetail,
+  WishlistWithItems,
+} from "./wishlist.types";
 
-class AddItemDto {
-  @IsUUID()
-  productId: string;
+const DEFAULT_WISHLIST_NAME = "Favoritos";
 
-  @IsOptional()
-  @IsString()
-  wishlistId?: string;
-}
-
-class CreateWishlistDto {
-  @IsString()
-  name: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isPublic?: boolean;
-}
-
-class UpdateWishlistDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isPublic?: boolean;
-}
-
-@Controller('wishlist')
+@Controller("wishlist")
 export class WishlistController {
-  constructor(private readonly wishlistService: WishlistService) {}
+  constructor(
+    private readonly wishlistService: WishlistService,
+    private readonly itemsService: WishlistItemsService,
+  ) {}
 
   @Get()
   async getWishlists(
-    @Query('tenantId') tenantId: string,
-    @Query('customerId', ParseUUIDPipe) customerId: string,
+    @Query("tenantId") tenantId: string,
+    @Query("customerId", ParseUUIDPipe) customerId: string,
   ): Promise<{ data: WishlistWithItems[] }> {
-    const wishlists = await this.wishlistService.getCustomerWishlists(tenantId, customerId);
-    return { data: wishlists };
+    const data = await this.wishlistService.listForCustomer(tenantId, customerId);
+    return { data };
   }
 
-  @Get('items')
+  @Get("items")
   async getWishlistItems(
-    @Query('tenantId') tenantId: string,
-    @Query('customerId', ParseUUIDPipe) customerId: string,
-    @Query('wishlistId') wishlistId?: string,
+    @Query("tenantId") tenantId: string,
+    @Query("customerId", ParseUUIDPipe) customerId: string,
+    @Query("wishlistId") wishlistId?: string,
   ): Promise<{ data: WishlistItemDetail[] }> {
     if (wishlistId) {
-      const items = await this.wishlistService.getWishlistItems(wishlistId);
+      const items = await this.itemsService.listItems(wishlistId);
       return { data: items };
     }
-    
-    const wishlists = await this.wishlistService.getCustomerWishlists(tenantId, customerId);
-    const defaultWishlist = wishlists.find(w => w.name === 'Favoritos') || wishlists[0];
-    
-    if (!defaultWishlist) {
-      return { data: [] };
-    }
-    
-    const items = await this.wishlistService.getWishlistItems(defaultWishlist.id);
+    const all = await this.wishlistService.listForCustomer(tenantId, customerId);
+    const defaultList = all.find((w) => w.name === DEFAULT_WISHLIST_NAME) ?? all[0];
+    if (!defaultList) return { data: [] };
+    const items = await this.itemsService.listItems(defaultList.id);
     return { data: items };
   }
 
-  @Post('items')
+  @Post("items")
   async addItem(
-    @Query('tenantId') tenantId: string,
-    @Query('customerId', ParseUUIDPipe) customerId: string,
-    @Body() dto: AddItemDto,
+    @Query("tenantId") tenantId: string,
+    @Query("customerId", ParseUUIDPipe) customerId: string,
+    @Body() dto: AddWishlistItemDto,
   ) {
-    return this.wishlistService.addItem(tenantId, customerId, dto.productId, dto.wishlistId);
+    return this.itemsService.addItem(
+      tenantId,
+      customerId,
+      dto.productId,
+      dto.wishlistId,
+    );
   }
 
-  @Delete('items/:itemId')
+  @Delete("items/:itemId")
   async removeItem(
-    @Param('itemId', ParseUUIDPipe) itemId: string,
-    @Query('wishlistId', ParseUUIDPipe) wishlistId: string,
-    @Query('customerId', ParseUUIDPipe) customerId: string,
+    @Param("itemId", ParseUUIDPipe) itemId: string,
+    @Query("wishlistId", ParseUUIDPipe) wishlistId: string,
+    @Query("customerId", ParseUUIDPipe) customerId: string,
   ) {
-    return this.wishlistService.removeItem(wishlistId, itemId, customerId);
+    return this.itemsService.removeItem(wishlistId, itemId, customerId);
   }
 
-  @Post('lists')
+  @Post("lists")
   async createWishlist(
-    @Query('tenantId') tenantId: string,
-    @Query('customerId', ParseUUIDPipe) customerId: string,
+    @Query("tenantId") tenantId: string,
+    @Query("customerId", ParseUUIDPipe) customerId: string,
     @Body() dto: CreateWishlistDto,
   ) {
-    const wishlist = await this.wishlistService.createWishlist(tenantId, customerId, dto.name, dto.isPublic);
-    return { data: wishlist };
+    const data = await this.wishlistService.create(
+      tenantId,
+      customerId,
+      dto.name,
+      dto.isPublic,
+    );
+    return { data };
   }
 
-  @Post('lists/:wishlistId')
+  @Post("lists/:wishlistId")
   async updateWishlist(
-    @Param('wishlistId', ParseUUIDPipe) wishlistId: string,
-    @Query('customerId', ParseUUIDPipe) customerId: string,
+    @Param("wishlistId", ParseUUIDPipe) wishlistId: string,
+    @Query("customerId", ParseUUIDPipe) customerId: string,
     @Body() dto: UpdateWishlistDto,
   ) {
-    const wishlist = await this.wishlistService.updateWishlist(wishlistId, customerId, dto);
-    return { data: wishlist };
+    const data = await this.wishlistService.update(wishlistId, customerId, dto);
+    return { data };
   }
 
-  @Delete('lists/:wishlistId')
+  @Delete("lists/:wishlistId")
   async deleteWishlist(
-    @Param('wishlistId', ParseUUIDPipe) wishlistId: string,
-    @Query('customerId', ParseUUIDPipe) customerId: string,
+    @Param("wishlistId", ParseUUIDPipe) wishlistId: string,
+    @Query("customerId", ParseUUIDPipe) customerId: string,
   ) {
-    return this.wishlistService.deleteWishlist(wishlistId, customerId);
+    return this.wishlistService.delete(wishlistId, customerId);
   }
 
-  @Get('shared/:shareToken')
+  @Get("shared/:shareToken")
   async getSharedWishlist(
-    @Param('shareToken') shareToken: string,
+    @Param("shareToken") shareToken: string,
   ): Promise<{ data: WishlistWithItems | null }> {
-    const wishlist = await this.wishlistService.getSharedWishlist(shareToken);
-    return { data: wishlist };
+    const data = await this.wishlistService.findByShareToken(shareToken);
+    return { data };
   }
 
-  @Get('check/:productId')
+  @Get("check/:productId")
   async checkProductInWishlist(
-    @Query('tenantId') tenantId: string,
-    @Query('customerId', ParseUUIDPipe) customerId: string,
-    @Param('productId', ParseUUIDPipe) productId: string,
+    @Query("tenantId") tenantId: string,
+    @Query("customerId", ParseUUIDPipe) customerId: string,
+    @Param("productId", ParseUUIDPipe) productId: string,
   ): Promise<{ data: boolean }> {
-    const inWishlist = await this.wishlistService.checkProductInWishlist(tenantId, customerId, productId);
-    return { data: inWishlist };
+    const data = await this.itemsService.hasProduct(tenantId, customerId, productId);
+    return { data };
   }
 }

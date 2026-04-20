@@ -8,6 +8,34 @@
       "when": 1776215637689,
       "tag": "0000_lying_randall_flagg",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1776215637690,
+      "tag": "0001_shipping",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1776215637691,
+      "tag": "0002_loyalty",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1776215637692,
+      "tag": "0003_wishlist",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1776215637693,
+      "tag": "0004_dropshipping_tickets",
+      "breakpoints": true
     }
   ]
 }

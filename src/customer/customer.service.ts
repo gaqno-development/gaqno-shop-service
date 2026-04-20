@@ -1,11 +1,12 @@
 import { Injectable, Inject, ConflictException, NotFoundException } from "@nestjs/common";
-import { eq, and, like, or } from "drizzle-orm";
+import { and, desc, eq, like, or } from "drizzle-orm";
 import { customers, customerAddresses } from "../database/schema";
+import { ShopDatabase } from "../database/shop-database.type";
 import { CreateCustomerDto, UpdateCustomerDto, CustomerQueryDto } from "./dto/customer.dto";
 
 @Injectable()
 export class CustomerService {
-  constructor(@Inject("DATABASE") private db: any) {}
+  constructor(@Inject("DATABASE") private readonly db: ShopDatabase) {}
 
   async findAll(tenantId: string, query: CustomerQueryDto) {
     const conditions = [eq(customers.tenantId, tenantId)];
@@ -27,7 +28,7 @@ export class CustomerService {
 
     return this.db.query.customers.findMany({
       where: and(...conditions),
-      orderBy: (customers: any, { desc }: any) => desc(customers.createdAt),
+      orderBy: desc(customers.createdAt),
     });
   }
 
