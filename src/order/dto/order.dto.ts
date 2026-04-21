@@ -1,4 +1,17 @@
-import { IsArray, IsObject, IsOptional, IsString, IsNumber, IsUUID, Max, Min, ValidateNested } from "class-validator";
+import {
+  IsArray,
+  IsBoolean,
+  IsDateString,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsUUID,
+  IsUrl,
+  Max,
+  Min,
+  ValidateNested,
+} from "class-validator";
 import { Transform, Type } from "class-transformer";
 
 const MAX_PAGE_SIZE = 200;
@@ -11,6 +24,15 @@ const toInt = ({ value }: { value: unknown }): unknown => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : value;
 };
+
+class OrderItemDecorationInputDto {
+  @IsUUID()
+  decorationId: string;
+
+  @IsOptional()
+  @IsString()
+  customText?: string | null;
+}
 
 class OrderItemDto {
   @IsUUID()
@@ -34,6 +56,24 @@ class OrderItemDto {
   @IsOptional()
   @IsString()
   imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  size?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @IsOptional()
+  @IsUrl({ protocols: ["https"], require_protocol: true })
+  referenceImageUrl?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OrderItemDecorationInputDto)
+  decorations?: OrderItemDecorationInputDto[];
 }
 
 class AddressDto {
@@ -91,6 +131,18 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   sessionId?: string;
+
+  @IsOptional()
+  @IsDateString()
+  deliveryDate?: string;
+
+  @IsOptional()
+  @IsString()
+  deliveryTime?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  deliveryIsPickup?: boolean;
 }
 
 export class UpdateOrderStatusDto {
