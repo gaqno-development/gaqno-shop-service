@@ -5,12 +5,14 @@ import { OrderCreateService } from "./order-create.service";
 import { OrderStatusService } from "./order-status.service";
 import { OrderController } from "./order.controller";
 import { AuthModule } from "../auth/auth.module";
+import { EventsModule } from "../events/events.module";
 import { JwtModule } from "@nestjs/jwt";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 
 @Module({
   imports: [
     AuthModule,
+    EventsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({

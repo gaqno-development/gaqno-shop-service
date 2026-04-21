@@ -7,6 +7,10 @@ import { runMigrations } from "./database/migrate";
 import { AppModule } from "./app.module";
 
 function stripPrefix(req: Request, _res: Response, next: NextFunction): void {
+  if (req.path.startsWith("/shop/socket.io")) {
+    next();
+    return;
+  }
   if (req.path.startsWith("/shop/")) {
     req.url = req.url.replace(/^\/shop/, "") || "/";
   }

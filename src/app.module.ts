@@ -19,6 +19,7 @@ import { WishlistModule } from "./wishlist/wishlist.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { DropshippingModule } from "./dropshipping/dropshipping.module";
 import { ReportModule } from "./report/report.module";
+import { EventsModule } from "./events/events.module";
 import { TenantContextMiddleware } from "./common/middleware/tenant-context.middleware";
 import { TenantService } from "./tenant/tenant.service";
 
@@ -53,6 +54,7 @@ import { TenantService } from "./tenant/tenant.service";
     AnalyticsModule,
     DropshippingModule,
     ReportModule,
+    EventsModule,
   ],
   controllers: [],
   providers: [TenantContextMiddleware],

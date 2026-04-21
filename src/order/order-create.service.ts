@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { orders, orderItems, orderStatusHistory } from "../database/schema";
 import { ShopDatabase } from "../database/shop-database.type";
+import { EventsService } from "../events/events.service";
 import { CreateOrderDto } from "./dto/order.dto";
 import { generateOrderNumber } from "./order-number.util";
 import { OrderReadService } from "./order-read.service";
@@ -28,6 +29,7 @@ export class OrderCreateService {
   constructor(
     @Inject("DATABASE") private readonly db: ShopDatabase,
     private readonly reader: OrderReadService,
+    private readonly events: EventsService,
   ) {}
 
   async create(tenantId: string, tenantSlug: string, dto: CreateOrderDto) {
@@ -60,7 +62,10 @@ export class OrderCreateService {
       notes: "Order created",
     });
 
-    return this.reader.findOne(tenantId, orderNumber);
+    const created = await this.reader.findOne(tenantId, orderNumber);
+    this.events.emitOrderCreated(tenantId, created);
+    this.events.emitDashboardStatsUpdate(tenantId);
+    return created;
   }
 
   private async insertItems(

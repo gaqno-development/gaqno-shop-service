@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable } from "@nestjs/common";
 import { and, eq } from "drizzle-orm";
 import { orders, orderStatusHistory } from "../database/schema";
 import { ShopDatabase } from "../database/shop-database.type";
+import { EventsService } from "../events/events.service";
 import { UpdateOrderStatusDto } from "./dto/order.dto";
 import { OrderReadService } from "./order-read.service";
 
@@ -33,6 +34,7 @@ export class OrderStatusService {
   constructor(
     @Inject("DATABASE") private readonly db: ShopDatabase,
     private readonly reader: OrderReadService,
+    private readonly events: EventsService,
   ) {}
 
   async updateStatus(
@@ -57,6 +59,15 @@ export class OrderStatusService {
       notes: dto.notes,
     });
 
-    return this.reader.findOne(tenantId, orderNumber);
+    const updated = await this.reader.findOne(tenantId, orderNumber);
+    this.events.emitOrderUpdated(tenantId, updated);
+    this.events.emitOrderStatusChanged(tenantId, {
+      id: updated.id,
+      orderNumber: updated.orderNumber,
+      status: dto.status,
+      previousStatus: order.status,
+    });
+    this.events.emitDashboardStatsUpdate(tenantId);
+    return updated;
   }
 }

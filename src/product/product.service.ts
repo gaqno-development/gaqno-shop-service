@@ -2,6 +2,8 @@ import { Injectable, Inject, NotFoundException } from "@nestjs/common";
 import { eq, and, like, desc, asc, SQL, sql, gte, lte } from "drizzle-orm";
 import { categories, products, Product, NewProduct } from "../database/schema";
 import { ShopDatabase } from "../database/shop-database.type";
+import { EventsService } from "../events/events.service";
+import { LOW_STOCK_THRESHOLD } from "../events/constants";
 import {
   CreateProductDto,
   UpdateProductDto,
@@ -37,7 +39,10 @@ function resolveSort(query: ProductQueryDto): {
 
 @Injectable()
 export class ProductService {
-  constructor(@Inject("DATABASE") private readonly db: ShopDatabase) {}
+  constructor(
+    @Inject("DATABASE") private readonly db: ShopDatabase,
+    private readonly events: EventsService,
+  ) {}
 
   async findAll(tenantId: string, query: ProductQueryDto) {
     const {
@@ -162,7 +167,7 @@ export class ProductService {
   }
 
   async update(tenantId: string, id: string, dto: UpdateProductDto): Promise<Product> {
-    await this.findById(tenantId, id);
+    const before = await this.findById(tenantId, id);
 
     const { price, ...rest } = dto;
     const payload: Partial<NewProduct> & { updatedAt: Date } = {
@@ -177,7 +182,25 @@ export class ProductService {
       .where(and(eq(products.tenantId, tenantId), eq(products.id, id)))
       .returning();
 
+    this.maybeEmitLowStock(tenantId, before, product);
     return product;
+  }
+
+  private maybeEmitLowStock(
+    tenantId: string,
+    before: Product,
+    after: Product,
+  ): void {
+    const prev = before.inventoryQuantity ?? 0;
+    const next = after.inventoryQuantity ?? 0;
+    const crossedDown = prev > LOW_STOCK_THRESHOLD && next <= LOW_STOCK_THRESHOLD;
+    if (crossedDown) {
+      this.events.emitInventoryLowStock(tenantId, {
+        productId: after.id,
+        name: after.name,
+        quantity: next,
+      });
+    }
   }
 
   async delete(tenantId: string, id: string): Promise<void> {

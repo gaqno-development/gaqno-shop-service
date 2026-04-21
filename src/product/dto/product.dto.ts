@@ -84,8 +84,21 @@ export class UpdateProductDto {
   price?: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  inventoryQuantity?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  inventoryTracked?: boolean;
+
+  @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isFeatured?: boolean;
 }
 
 export class ProductQueryDto {
