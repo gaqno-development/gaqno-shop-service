@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Post } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+} from "@nestjs/common";
+import type { Request } from "express";
 import { TenantService } from "./tenant.service";
 
 @Controller()
@@ -38,5 +48,12 @@ export class TenantController {
       ? await this.tenantService.getById(body.tenantId)
       : null;
     return { success: Boolean(tenant), tenant };
+  }
+
+  @Get("current/feature-flags")
+  async currentFeatureFlags(@Req() req: Request) {
+    const tenantId = (req as Request & { tenantId?: string }).tenantId;
+    if (!tenantId) return null;
+    return this.tenantService.getFeatureFlags(tenantId);
   }
 }
