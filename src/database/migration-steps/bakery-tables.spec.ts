@@ -79,6 +79,21 @@ describe("applyBakeryTables", () => {
     expect(approvedStmt).toBeDefined();
   });
 
+  it("extends order_status enum using ALTER TYPE ADD VALUE IF NOT EXISTS (no parameterized binds inside DO blocks)", async () => {
+    const { sql, statements } = createSqlRecorder();
+    await applyBakeryTables(sql);
+    const reviewStmt = findStatement(statements, "awaiting_decoration_review");
+    const approvedStmt = findStatement(statements, "decoration_approved");
+    expect(reviewStmt).toBeDefined();
+    expect(approvedStmt).toBeDefined();
+    for (const stmt of [reviewStmt, approvedStmt] as string[]) {
+      expect(stmt).toContain(
+        "ALTER TYPE order_status ADD VALUE IF NOT EXISTS",
+      );
+      expect(stmt).not.toMatch(/\$\d+/);
+    }
+  });
+
   it("adds feature_bakery column to tenant_feature_flags (idempotent)", async () => {
     const { sql, statements } = createSqlRecorder();
     await applyBakeryTables(sql);

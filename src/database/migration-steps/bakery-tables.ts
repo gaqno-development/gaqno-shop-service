@@ -1,24 +1,23 @@
 import type { SqlClient } from "./enums";
 
+const SAFE_IDENTIFIER_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+function assertSafeIdentifier(name: string): void {
+  if (!SAFE_IDENTIFIER_PATTERN.test(name)) {
+    throw new Error(`Unsafe SQL identifier: ${name}`);
+  }
+}
+
 async function ensureEnumValue(
   sql: SqlClient,
   enumName: string,
   value: string,
 ): Promise<void> {
-  await sql`
-    DO $$
-    BEGIN
-      IF NOT EXISTS (
-        SELECT 1
-        FROM pg_type t
-        JOIN pg_enum e ON e.enumtypid = t.oid
-        WHERE t.typname = ${enumName}
-          AND e.enumlabel = ${value}
-      ) THEN
-        EXECUTE format('ALTER TYPE %I ADD VALUE IF NOT EXISTS %L', ${enumName}, ${value});
-      END IF;
-    END $$;
-  `;
+  assertSafeIdentifier(enumName);
+  assertSafeIdentifier(value);
+  await sql.unsafe(
+    `ALTER TYPE ${enumName} ADD VALUE IF NOT EXISTS '${value}'`,
+  );
 }
 
 async function ensureColumn(
