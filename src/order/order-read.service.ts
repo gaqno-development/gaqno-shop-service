@@ -15,14 +15,17 @@ export class OrderReadService {
   constructor(@Inject("DATABASE") private readonly db: ShopDatabase) {}
 
   async findAll(tenantId: string, query: OrderQueryDto) {
-    const { customerId, status, limit = 20, offset = 0 } = query;
+    const { customerId, status } = query;
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const offset = query.offset ?? (page - 1) * limit;
     const conditions = [eq(orders.tenantId, tenantId)];
     if (customerId) conditions.push(eq(orders.customerId, customerId));
     if (status) {
       conditions.push(eq(orders.status, status as OrderStatusLiteral));
     }
 
-    const items = await this.db.query.orders.findMany({
+    const data = await this.db.query.orders.findMany({
       where: and(...conditions),
       limit,
       offset,
@@ -39,8 +42,15 @@ export class OrderReadService {
       .select({ count: sql<number>`count(*)::int` })
       .from(orders)
       .where(and(...conditions));
+    const total = totalRow[0]?.count ?? 0;
 
-    return { items, total: totalRow[0]?.count ?? 0, limit, offset };
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findOne(tenantId: string, orderNumber: string) {
