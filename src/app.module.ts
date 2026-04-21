@@ -20,7 +20,15 @@ import { AnalyticsModule } from "./analytics/analytics.module";
 import { DropshippingModule } from "./dropshipping/dropshipping.module";
 import { ReportModule } from "./report/report.module";
 import { EventsModule } from "./events/events.module";
+import { IngredientsModule } from "./bakery/ingredients/ingredients.module";
+import { DecorationsModule } from "./bakery/decorations/decorations.module";
+import { RecipesModule } from "./bakery/recipes/recipes.module";
+import { InventoryModule } from "./bakery/inventory/inventory.module";
+import { AdminEventsModule } from "./bakery/events/admin-events.module";
+import { SiteSettingsModule } from "./bakery/site-settings/site-settings.module";
+import { BakeryAssetsModule } from "./bakery/assets/bakery-assets.module";
 import { TenantContextMiddleware } from "./common/middleware/tenant-context.middleware";
+import { FeatureFlagGuard } from "./common/guards/feature-flag.guard";
 import { TenantService } from "./tenant/tenant.service";
 
 @Module({
@@ -55,9 +63,16 @@ import { TenantService } from "./tenant/tenant.service";
     DropshippingModule,
     ReportModule,
     EventsModule,
+    IngredientsModule,
+    DecorationsModule,
+    RecipesModule,
+    InventoryModule,
+    AdminEventsModule,
+    SiteSettingsModule,
+    BakeryAssetsModule,
   ],
   controllers: [],
-  providers: [TenantContextMiddleware],
+  providers: [TenantContextMiddleware, FeatureFlagGuard],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
