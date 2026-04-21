@@ -8,6 +8,7 @@ import { createOrderTables } from "./migration-steps/order-tables";
 import { seedDefaultTenants } from "./migration-steps/seed-tenants";
 import { createDropshippingTables } from "./migration-steps/dropshipping-tables";
 import { applyDropshippingColumns } from "./migration-steps/dropshipping-columns";
+import { applyOAuthAccountsTable } from "./migration-steps/oauth-tables";
 
 async function tableExists(sql: SqlClient, tableName: string): Promise<boolean> {
   const result = await sql`SELECT EXISTS (
@@ -46,6 +47,7 @@ export async function runMigrations(databaseUrl: string): Promise<void> {
     } else {
       await applyDropshippingColumns(sql);
     }
+    await applyOAuthAccountsTable(sql);
     console.log("✅ Database migrations completed successfully");
   } catch (error) {
     console.error("❌ Migration failed:", error);

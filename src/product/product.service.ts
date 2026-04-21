@@ -1,17 +1,39 @@
 import { Injectable, Inject, NotFoundException } from "@nestjs/common";
-import { eq, and, like, desc, asc, SQL, sql } from "drizzle-orm";
-import { products, Product, NewProduct } from "../database/schema";
+import { eq, and, like, desc, asc, SQL, sql, gte, lte } from "drizzle-orm";
+import { categories, products, Product, NewProduct } from "../database/schema";
 import { ShopDatabase } from "../database/shop-database.type";
-import { CreateProductDto, UpdateProductDto, ProductQueryDto } from "./dto/product.dto";
-
-type ProductSortColumn = "createdAt" | "name" | "price" | "updatedAt";
+import {
+  CreateProductDto,
+  UpdateProductDto,
+  ProductQueryDto,
+} from "./dto/product.dto";
+import {
+  PRODUCT_SORT_MAP,
+  type ProductSortValue,
+} from "./dto/product-sort.constants";
 
 const PRODUCT_SORT_COLUMNS = {
   createdAt: products.createdAt,
   name: products.name,
   price: products.price,
   updatedAt: products.updatedAt,
-} as const satisfies Record<ProductSortColumn, unknown>;
+} as const;
+
+type ProductSortColumn = keyof typeof PRODUCT_SORT_COLUMNS;
+
+function resolveSort(query: ProductQueryDto): {
+  column: (typeof PRODUCT_SORT_COLUMNS)[ProductSortColumn];
+  order: "asc" | "desc";
+} {
+  if (query.sort && query.sort in PRODUCT_SORT_MAP) {
+    const mapped = PRODUCT_SORT_MAP[query.sort as ProductSortValue];
+    return { column: PRODUCT_SORT_COLUMNS[mapped.sortBy], order: mapped.sortOrder };
+  }
+  const sortBy = (query.sortBy as ProductSortColumn) ?? "createdAt";
+  const column = PRODUCT_SORT_COLUMNS[sortBy] ?? PRODUCT_SORT_COLUMNS.createdAt;
+  const order = query.sortOrder === "asc" ? "asc" : "desc";
+  return { column, order };
+}
 
 @Injectable()
 export class ProductService {
@@ -20,14 +42,16 @@ export class ProductService {
   async findAll(tenantId: string, query: ProductQueryDto) {
     const {
       categoryId,
+      category,
       isActive = true,
       isFeatured,
       limit = 20,
-      offset = 0,
+      page,
       search,
-      sortBy = "createdAt",
-      sortOrder = "desc",
+      minPrice,
+      maxPrice,
     } = query;
+    const offset = query.offset ?? (page ? (page - 1) * limit : 0);
 
     const conditions: SQL[] = [eq(products.tenantId, tenantId)];
 
@@ -41,15 +65,34 @@ export class ProductService {
 
     if (categoryId) {
       conditions.push(eq(products.categoryId, categoryId));
+    } else if (category) {
+      const resolved = await this.db.query.categories.findFirst({
+        where: and(
+          eq(categories.tenantId, tenantId),
+          eq(categories.slug, category),
+        ),
+        columns: { id: true },
+      });
+      if (resolved) {
+        conditions.push(eq(products.categoryId, resolved.id));
+      } else {
+        return { items: [], total: 0, limit, offset };
+      }
     }
 
     if (search) {
       conditions.push(like(products.name, `%${search}%`));
     }
 
-    const orderByColumn =
-      PRODUCT_SORT_COLUMNS[sortBy as ProductSortColumn] ?? products.createdAt;
-    const orderBy = sortOrder === "asc" ? asc(orderByColumn) : desc(orderByColumn);
+    if (minPrice !== undefined) {
+      conditions.push(gte(products.price, String(minPrice)));
+    }
+    if (maxPrice !== undefined) {
+      conditions.push(lte(products.price, String(maxPrice)));
+    }
+
+    const { column, order } = resolveSort(query);
+    const orderBy = order === "asc" ? asc(column) : desc(column);
 
     const items = await this.db.query.products.findMany({
       where: and(...conditions),
@@ -66,11 +109,16 @@ export class ProductService {
       .from(products)
       .where(and(...conditions));
 
+    const totalCount = Number(total[0]?.count ?? 0);
+    const currentPage = page ?? Math.floor(offset / limit) + 1;
     return {
+      data: items,
       items,
-      total: total[0]?.count || 0,
+      total: totalCount,
+      page: currentPage,
       limit,
       offset,
+      totalPages: Math.max(1, Math.ceil(totalCount / limit)),
     };
   }
 

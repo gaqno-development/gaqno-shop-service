@@ -1,16 +1,21 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
+import { AuthOauthService } from './auth-oauth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { GoogleOauthDto } from './dto/google-oauth.dto';
 import { CurrentTenant } from '../common/decorators/current-tenant.decorator';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly oauthService: AuthOauthService,
+  ) {}
 
   @Post('register')
   async register(
@@ -62,5 +67,19 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async verifyEmail(@Body() dto: VerifyEmailDto) {
     return this.authService.verifyEmail(dto.token);
+  }
+
+  @Post('oauth/google')
+  @HttpCode(HttpStatus.OK)
+  async googleOauth(
+    @CurrentTenant('tenantId') tenantId: string,
+    @Body() dto: GoogleOauthDto,
+    @Req() req: Request,
+  ) {
+    return this.oauthService.signInWithGoogle(tenantId, {
+      accessToken: dto.accessToken,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
   }
 }

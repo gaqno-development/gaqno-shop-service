@@ -6,6 +6,8 @@ import { AuthService } from './auth.service';
 import { AuthSessionService } from './auth-session.service';
 import { AuthPasswordService } from './auth-password.service';
 import { AuthEmailService } from './auth-email.service';
+import { AuthOauthService, GOOGLE_TOKEN_VERIFIER } from './auth-oauth.service';
+import { GoogleTokenVerifierHttp } from './google-token.verifier';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { MailModule } from '../mail/mail.module';
@@ -30,6 +32,8 @@ import { MailModule } from '../mail/mail.module';
     AuthSessionService,
     AuthPasswordService,
     AuthEmailService,
+    AuthOauthService,
+    { provide: GOOGLE_TOKEN_VERIFIER, useClass: GoogleTokenVerifierHttp },
     JwtStrategy,
   ],
   controllers: [AuthController],

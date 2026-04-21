@@ -26,6 +26,8 @@ export const customers = pgTable(
     cpf: varchar("cpf", { length: 14 }),
     birthDate: timestamp("birth_date"),
     isEmailVerified: boolean("is_email_verified").default(false),
+    emailVerifiedAt: timestamp("email_verified_at"),
+    avatarUrl: varchar("avatar_url", { length: 500 }),
     isActive: boolean("is_active").default(true),
     metadata: jsonb("metadata").default({}),
     createdAt: timestamp("created_at").defaultNow(),
@@ -135,6 +137,37 @@ export const customerPasswordResets = pgTable(
   }),
 );
 
+export const customerOauthAccounts = pgTable(
+  "customer_oauth_accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    provider: varchar("provider", { length: 40 }).notNull(),
+    providerAccountId: varchar("provider_account_id", { length: 255 }).notNull(),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    expiresAt: timestamp("expires_at"),
+    scope: varchar("scope", { length: 500 }),
+    tokenType: varchar("token_type", { length: 40 }),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    tenantIdx: index("oauth_accounts_tenant_idx").on(table.tenantId),
+    customerIdx: index("oauth_accounts_customer_idx").on(table.customerId),
+    providerIdentityIdx: uniqueIndex("oauth_accounts_provider_identity_idx").on(
+      table.provider,
+      table.providerAccountId,
+    ),
+  }),
+);
+
 export type Customer = typeof customers.$inferSelect;
 export type NewCustomer = typeof customers.$inferInsert;
 export type CustomerAddress = typeof customerAddresses.$inferSelect;
@@ -142,3 +175,5 @@ export type CustomerSession = typeof customerSessions.$inferSelect;
 export type CustomerEmailVerification =
   typeof customerEmailVerifications.$inferSelect;
 export type CustomerPasswordReset = typeof customerPasswordResets.$inferSelect;
+export type CustomerOauthAccount = typeof customerOauthAccounts.$inferSelect;
+export type NewCustomerOauthAccount = typeof customerOauthAccounts.$inferInsert;

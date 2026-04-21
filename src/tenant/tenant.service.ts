@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { tenantFeatureFlags, tenants } from "../database/schema";
 import { ShopDatabase } from "../database/shop-database.type";
 
@@ -16,6 +16,17 @@ export class TenantService {
   getBySlug(slug: string) {
     return this.db.query.tenants.findFirst({
       where: eq(tenants.slug, slug),
+    });
+  }
+
+  getById(id: string) {
+    return this.db.query.tenants.findFirst({ where: eq(tenants.id, id) });
+  }
+
+  listActive() {
+    return this.db.query.tenants.findMany({
+      where: eq(tenants.isActive, true),
+      orderBy: [asc(tenants.name)],
     });
   }
 
