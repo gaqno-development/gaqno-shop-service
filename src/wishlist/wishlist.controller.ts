@@ -8,6 +8,8 @@ import {
   Post,
   Query,
 } from "@nestjs/common";
+import { CurrentTenant } from "../common/decorators/current-tenant.decorator";
+import { requireTenantId } from "../common/tenant-guard";
 import { WishlistService } from "./wishlist.service";
 import { WishlistItemsService } from "./wishlist-items.service";
 import {
@@ -31,24 +33,31 @@ export class WishlistController {
 
   @Get()
   async getWishlists(
-    @Query("tenantId") tenantId: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
     @Query("customerId", ParseUUIDPipe) customerId: string,
   ): Promise<{ data: WishlistWithItems[] }> {
-    const data = await this.wishlistService.listForCustomer(tenantId, customerId);
+    const data = await this.wishlistService.listForCustomer(
+      requireTenantId(tenantId),
+      customerId,
+    );
     return { data };
   }
 
   @Get("items")
   async getWishlistItems(
-    @Query("tenantId") tenantId: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
     @Query("customerId", ParseUUIDPipe) customerId: string,
     @Query("wishlistId") wishlistId?: string,
   ): Promise<{ data: WishlistItemDetail[] }> {
+    const resolvedTenantId = requireTenantId(tenantId);
     if (wishlistId) {
       const items = await this.itemsService.listItems(wishlistId);
       return { data: items };
     }
-    const all = await this.wishlistService.listForCustomer(tenantId, customerId);
+    const all = await this.wishlistService.listForCustomer(
+      resolvedTenantId,
+      customerId,
+    );
     const defaultList = all.find((w) => w.name === DEFAULT_WISHLIST_NAME) ?? all[0];
     if (!defaultList) return { data: [] };
     const items = await this.itemsService.listItems(defaultList.id);
@@ -57,12 +66,12 @@ export class WishlistController {
 
   @Post("items")
   async addItem(
-    @Query("tenantId") tenantId: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
     @Query("customerId", ParseUUIDPipe) customerId: string,
     @Body() dto: AddWishlistItemDto,
   ) {
     return this.itemsService.addItem(
-      tenantId,
+      requireTenantId(tenantId),
       customerId,
       dto.productId,
       dto.wishlistId,
@@ -80,12 +89,12 @@ export class WishlistController {
 
   @Post("lists")
   async createWishlist(
-    @Query("tenantId") tenantId: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
     @Query("customerId", ParseUUIDPipe) customerId: string,
     @Body() dto: CreateWishlistDto,
   ) {
     const data = await this.wishlistService.create(
-      tenantId,
+      requireTenantId(tenantId),
       customerId,
       dto.name,
       dto.isPublic,
@@ -121,11 +130,15 @@ export class WishlistController {
 
   @Get("check/:productId")
   async checkProductInWishlist(
-    @Query("tenantId") tenantId: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
     @Query("customerId", ParseUUIDPipe) customerId: string,
     @Param("productId", ParseUUIDPipe) productId: string,
   ): Promise<{ data: boolean }> {
-    const data = await this.itemsService.hasProduct(tenantId, customerId, productId);
+    const data = await this.itemsService.hasProduct(
+      requireTenantId(tenantId),
+      customerId,
+      productId,
+    );
     return { data };
   }
 }

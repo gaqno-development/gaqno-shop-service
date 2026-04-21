@@ -11,6 +11,8 @@ import {
   Put,
   Query,
 } from "@nestjs/common";
+import { CurrentTenant } from "../common/decorators/current-tenant.decorator";
+import { requireTenantId } from "../common/tenant-guard";
 import { ShippingCalculatorService } from "./shipping-calculator.service";
 import { ShippingMethodService } from "./shipping-method.service";
 import {
@@ -27,36 +29,48 @@ export class ShippingController {
   ) {}
 
   @Get("methods")
-  async getShippingMethods(@Query("tenantId") tenantId: string) {
-    const data = await this.shippingMethodService.listMethods(tenantId);
+  async getShippingMethods(@CurrentTenant("tenantId") tenantId: string | undefined) {
+    const data = await this.shippingMethodService.listMethods(
+      requireTenantId(tenantId),
+    );
     return { data };
   }
 
   @Post("methods")
   async createShippingMethod(
-    @Query("tenantId") tenantId: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
     @Body() dto: CreateShippingMethodDto,
   ) {
-    const data = await this.shippingMethodService.createMethod(tenantId, dto);
+    const data = await this.shippingMethodService.createMethod(
+      requireTenantId(tenantId),
+      dto,
+    );
     return { data };
   }
 
   @Get("methods/:id")
   async getShippingMethod(
     @Param("id", ParseUUIDPipe) id: string,
-    @Query("tenantId") tenantId: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
   ) {
-    const data = await this.shippingMethodService.findMethod(tenantId, id);
+    const data = await this.shippingMethodService.findMethod(
+      requireTenantId(tenantId),
+      id,
+    );
     return { data };
   }
 
   @Put("methods/:id")
   async updateShippingMethod(
     @Param("id", ParseUUIDPipe) id: string,
-    @Query("tenantId") tenantId: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
     @Body() dto: UpdateShippingMethodDto,
   ) {
-    const data = await this.shippingMethodService.updateMethod(tenantId, id, dto);
+    const data = await this.shippingMethodService.updateMethod(
+      requireTenantId(tenantId),
+      id,
+      dto,
+    );
     return { data };
   }
 
@@ -64,19 +78,19 @@ export class ShippingController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteShippingMethod(
     @Param("id", ParseUUIDPipe) id: string,
-    @Query("tenantId") tenantId: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
   ) {
-    await this.shippingMethodService.deleteMethod(tenantId, id);
+    await this.shippingMethodService.deleteMethod(requireTenantId(tenantId), id);
   }
 
   @Post("calculate")
   async calculateShipping(
-    @Query("tenantId") tenantId: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
     @Body() dto: CalculateShippingDto,
   ) {
     const items = [{ productId: dto.productId, quantity: dto.quantity ?? 1 }];
     const data = await this.shippingCalculator.calculateShipping(
-      tenantId,
+      requireTenantId(tenantId),
       dto.cepDestino,
       items,
       dto.subtotal ?? 0,
@@ -86,16 +100,19 @@ export class ShippingController {
 
   @Get("cache")
   async getCachedRates(
-    @Query("tenantId") tenantId: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
     @Query("cep") cep: string,
   ) {
-    const data = await this.shippingMethodService.getCachedRates(tenantId, cep);
+    const data = await this.shippingMethodService.getCachedRates(
+      requireTenantId(tenantId),
+      cep,
+    );
     return { data };
   }
 
   @Delete("cache")
   @HttpCode(HttpStatus.NO_CONTENT)
-  async clearCache(@Query("tenantId") tenantId: string) {
-    await this.shippingMethodService.clearCache(tenantId);
+  async clearCache(@CurrentTenant("tenantId") tenantId: string | undefined) {
+    await this.shippingMethodService.clearCache(requireTenantId(tenantId));
   }
 }

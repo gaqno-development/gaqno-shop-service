@@ -6,6 +6,8 @@ import {
   Post,
   Query,
 } from "@nestjs/common";
+import { CurrentTenant } from "../common/decorators/current-tenant.decorator";
+import { requireTenantId } from "../common/tenant-guard";
 import { LoyaltyService } from "./loyalty.service";
 import { RedeemPointsDto } from "./dto/loyalty.dto";
 import {
@@ -14,43 +16,49 @@ import {
   TierInfo,
 } from "./loyalty.types";
 
+const DEFAULT_TRANSACTIONS_LIMIT = 20;
+const DEFAULT_TRANSACTIONS_OFFSET = 0;
+
 @Controller("loyalty")
 export class LoyaltyController {
   constructor(private readonly loyaltyService: LoyaltyService) {}
 
   @Get("summary")
   async getPointsSummary(
-    @Query("tenantId") tenantId: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
     @Query("customerId", ParseUUIDPipe) customerId: string,
   ): Promise<{ data: PointsSummary }> {
-    const data = await this.loyaltyService.getPointsSummary(tenantId, customerId);
+    const data = await this.loyaltyService.getPointsSummary(
+      requireTenantId(tenantId),
+      customerId,
+    );
     return { data };
   }
 
   @Get("transactions")
   async getTransactions(
-    @Query("tenantId") tenantId: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
     @Query("customerId", ParseUUIDPipe) customerId: string,
     @Query("limit") limit?: number,
     @Query("offset") offset?: number,
   ): Promise<{ data: PointsTransactionDetail[] }> {
     const data = await this.loyaltyService.getTransactionHistory(
-      tenantId,
+      requireTenantId(tenantId),
       customerId,
-      limit ? Number(limit) : 20,
-      offset ? Number(offset) : 0,
+      limit ? Number(limit) : DEFAULT_TRANSACTIONS_LIMIT,
+      offset ? Number(offset) : DEFAULT_TRANSACTIONS_OFFSET,
     );
     return { data };
   }
 
   @Post("redeem")
   async redeemPoints(
-    @Query("tenantId") tenantId: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
     @Query("customerId", ParseUUIDPipe) customerId: string,
     @Body() dto: RedeemPointsDto,
   ) {
     return this.loyaltyService.redeemPoints(
-      tenantId,
+      requireTenantId(tenantId),
       customerId,
       dto.points,
       dto.orderId,
@@ -59,12 +67,12 @@ export class LoyaltyController {
 
   @Get("calculate")
   async calculateOrderPoints(
-    @Query("tenantId") tenantId: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
     @Query("customerId", ParseUUIDPipe) customerId: string,
     @Query("orderTotal") orderTotal: string,
   ): Promise<{ data: number }> {
     const data = await this.loyaltyService.calculateOrderPoints(
-      tenantId,
+      requireTenantId(tenantId),
       customerId,
       parseFloat(orderTotal),
     );
@@ -73,9 +81,11 @@ export class LoyaltyController {
 
   @Get("tiers")
   async getTiers(
-    @Query("tenantId") tenantId: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
   ): Promise<{ data: TierInfo[] }> {
-    const data = await this.loyaltyService.getAvailableTiers(tenantId);
+    const data = await this.loyaltyService.getAvailableTiers(
+      requireTenantId(tenantId),
+    );
     return { data };
   }
 }

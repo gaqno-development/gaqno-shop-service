@@ -1,94 +1,116 @@
-import {
-  Controller,
-  Get,
-  Query,
-} from '@nestjs/common';
-import { AnalyticsService } from './analytics.service';
+import { Controller, Get, Query } from "@nestjs/common";
+import { CurrentTenant } from "../common/decorators/current-tenant.decorator";
+import { requireTenantId } from "../common/tenant-guard";
+import { AnalyticsService } from "./analytics.service";
 import {
   DashboardStats,
   RevenueData,
   SalesByCategory,
   TopProduct,
-} from './analytics.types';
+} from "./analytics.types";
 
-@Controller('analytics')
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const DEFAULT_TOP_PRODUCTS_LIMIT = 10;
+
+function resolveRange(start?: string, end?: string): { start: Date; end: Date } {
+  return {
+    start: start ? new Date(start) : new Date(Date.now() - THIRTY_DAYS_MS),
+    end: end ? new Date(end) : new Date(),
+  };
+}
+
+@Controller("analytics")
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
-  @Get('dashboard')
+  @Get("dashboard")
   async getDashboard(
-    @Query('tenantId') tenantId: string,
-    @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
+    @Query("startDate") startDate: string,
+    @Query("endDate") endDate: string,
   ): Promise<{ data: DashboardStats }> {
-    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const end = endDate ? new Date(endDate) : new Date();
-    
-    const stats = await this.analyticsService.getDashboardStats(tenantId, start, end);
+    const { start, end } = resolveRange(startDate, endDate);
+    const stats = await this.analyticsService.getDashboardStats(
+      requireTenantId(tenantId),
+      start,
+      end,
+    );
     return { data: stats };
   }
 
-  @Get('revenue')
+  @Get("revenue")
   async getRevenue(
-    @Query('tenantId') tenantId: string,
-    @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
+    @Query("startDate") startDate: string,
+    @Query("endDate") endDate: string,
   ): Promise<{ data: RevenueData[] }> {
-    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const end = endDate ? new Date(endDate) : new Date();
-    
-    const revenue = await this.analyticsService.getRevenueByDay(tenantId, start, end);
+    const { start, end } = resolveRange(startDate, endDate);
+    const revenue = await this.analyticsService.getRevenueByDay(
+      requireTenantId(tenantId),
+      start,
+      end,
+    );
     return { data: revenue };
   }
 
-  @Get('top-products')
+  @Get("top-products")
   async getTopProducts(
-    @Query('tenantId') tenantId: string,
-    @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string,
-    @Query('limit') limit?: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
+    @Query("startDate") startDate: string,
+    @Query("endDate") endDate: string,
+    @Query("limit") limit?: string,
   ): Promise<{ data: TopProduct[] }> {
-    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const end = endDate ? new Date(endDate) : new Date();
-    const limitNum = limit ? parseInt(limit) : 10;
-    
-    const products = await this.analyticsService.getTopProducts(tenantId, start, end, limitNum);
+    const { start, end } = resolveRange(startDate, endDate);
+    const limitNum = limit ? parseInt(limit, 10) : DEFAULT_TOP_PRODUCTS_LIMIT;
+    const products = await this.analyticsService.getTopProducts(
+      requireTenantId(tenantId),
+      start,
+      end,
+      limitNum,
+    );
     return { data: products };
   }
 
-  @Get('sales-by-category')
+  @Get("sales-by-category")
   async getSalesByCategory(
-    @Query('tenantId') tenantId: string,
-    @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
+    @Query("startDate") startDate: string,
+    @Query("endDate") endDate: string,
   ): Promise<{ data: SalesByCategory[] }> {
-    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const end = endDate ? new Date(endDate) : new Date();
-    
-    const sales = await this.analyticsService.getSalesByCategory(tenantId, start, end);
+    const { start, end } = resolveRange(startDate, endDate);
+    const sales = await this.analyticsService.getSalesByCategory(
+      requireTenantId(tenantId),
+      start,
+      end,
+    );
     return { data: sales };
   }
 
-  @Get('hourly-sales')
+  @Get("hourly-sales")
   async getHourlySales(
-    @Query('tenantId') tenantId: string,
-    @Query('date') date: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
+    @Query("date") date: string,
   ): Promise<{ data: { hour: number; revenue: number; orders: number }[] }> {
     const queryDate = date ? new Date(date) : new Date();
-    const hourly = await this.analyticsService.getHourlySales(tenantId, queryDate);
+    const hourly = await this.analyticsService.getHourlySales(
+      requireTenantId(tenantId),
+      queryDate,
+    );
     return { data: hourly };
   }
 
-  @Get('payment-methods')
+  @Get("payment-methods")
   async getPaymentMethodStats(
-    @Query('tenantId') tenantId: string,
-    @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string,
+    @CurrentTenant("tenantId") tenantId: string | undefined,
+    @Query("startDate") startDate: string,
+    @Query("endDate") endDate: string,
   ): Promise<{ data: { method: string; count: number; total: number }[] }> {
-    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const end = endDate ? new Date(endDate) : new Date();
-    
-    const stats = await this.analyticsService.getPaymentMethodStats(tenantId, start, end);
+    const { start, end } = resolveRange(startDate, endDate);
+    const stats = await this.analyticsService.getPaymentMethodStats(
+      requireTenantId(tenantId),
+      start,
+      end,
+    );
     return { data: stats };
   }
 }
