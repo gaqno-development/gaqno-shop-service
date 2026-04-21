@@ -90,6 +90,9 @@ export const orderItems = pgTable(
     total: decimal("total", { precision: 10, scale: 2 }).notNull(),
     attributes: jsonb("attributes").default({}),
     imageUrl: varchar("image_url", { length: 500 }),
+    referenceImageUrl: varchar("reference_image_url", { length: 500 }),
+    size: varchar("size", { length: 100 }),
+    notes: text("notes"),
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => ({

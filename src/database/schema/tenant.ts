@@ -54,6 +54,7 @@ export const tenantFeatureFlags = pgTable(
     featureCheckoutPro: boolean("feature_checkout_pro").default(true),
     featurePix: boolean("feature_pix").default(true),
     featureDropshipping: boolean("feature_dropshipping").default(false),
+    featureBakery: boolean("feature_bakery").default(false),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },

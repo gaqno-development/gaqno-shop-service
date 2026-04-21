@@ -7,4 +7,5 @@ export * from "./shipping";
 export * from "./loyalty";
 export * from "./wishlist";
 export * from "./dropshipping";
+export * from "./bakery";
 export * from "./relations";
