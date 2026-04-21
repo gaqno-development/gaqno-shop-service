@@ -6,9 +6,8 @@ import {
   HttpCode,
   HttpStatus,
   Post,
-  Req,
 } from "@nestjs/common";
-import type { Request } from "express";
+import { getCurrentTenant } from "../common/tenant-context";
 import { TenantService } from "./tenant.service";
 
 @Controller()
@@ -51,8 +50,8 @@ export class TenantController {
   }
 
   @Get("current/feature-flags")
-  async currentFeatureFlags(@Req() req: Request) {
-    const tenantId = (req as Request & { tenantId?: string }).tenantId;
+  async currentFeatureFlags() {
+    const tenantId = getCurrentTenant()?.tenantId;
     if (!tenantId) return null;
     return this.tenantService.getFeatureFlags(tenantId);
   }
