@@ -192,9 +192,9 @@ export class TenantService {
   }
 
   async getFeatureFlags(tenantId: string) {
-    await this.ensureTenantExists(tenantId);
+    const resolved = await this.ensureTenantExists(tenantId);
     const row = await this.db.query.tenantFeatureFlags.findFirst({
-      where: eq(tenantFeatureFlags.tenantId, tenantId),
+      where: eq(tenantFeatureFlags.tenantId, resolved.id),
     });
     return row ?? null;
   }
@@ -203,7 +203,8 @@ export class TenantService {
     tenantId: string,
     patch: UpdateTenantFeatureFlagsDto,
   ) {
-    await this.ensureTenantExists(tenantId);
+    const resolved = await this.ensureTenantExists(tenantId);
+    const effectiveTenantId = resolved.id;
 
     const sanitized = TENANT_FEATURE_FLAG_KEYS.reduce<
       Partial<UpdateTenantFeatureFlagsDto>
@@ -216,21 +217,21 @@ export class TenantService {
     }, {});
 
     const existing = await this.db.query.tenantFeatureFlags.findFirst({
-      where: eq(tenantFeatureFlags.tenantId, tenantId),
+      where: eq(tenantFeatureFlags.tenantId, effectiveTenantId),
     });
 
     if (existing) {
       const [updated] = await this.db
         .update(tenantFeatureFlags)
         .set({ ...sanitized, updatedAt: new Date() })
-        .where(eq(tenantFeatureFlags.tenantId, tenantId))
+        .where(eq(tenantFeatureFlags.tenantId, effectiveTenantId))
         .returning();
       return updated;
     }
 
     const [created] = await this.db
       .insert(tenantFeatureFlags)
-      .values({ tenantId, ...sanitized })
+      .values({ tenantId: effectiveTenantId, ...sanitized })
       .returning();
     return created;
   }

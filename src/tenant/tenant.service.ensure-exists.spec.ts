@@ -187,6 +187,75 @@ describe("TenantService.getFeatureFlags with tenant sync", () => {
   });
 });
 
+describe("TenantService identity reconciliation for feature-flags", () => {
+  let service: TenantService;
+
+  async function buildService(db: unknown, ssoClient: SsoTenantClient) {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TenantService,
+        { provide: "DATABASE", useValue: db },
+        { provide: SsoTenantClient, useValue: ssoClient },
+      ],
+    }).compile();
+    service = module.get<TenantService>(TenantService);
+  }
+
+  it("uses the resolved local tenant id (not the URL tenantId) when ensure returns a pre-seeded row with a different id", async () => {
+    const preSeededLocal: LocalTenant = {
+      id: "local-seed-uuid",
+      slug: "fifia-doces",
+      name: "Fifia Doces",
+    };
+    const tenantsFindFirst = jest
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(preSeededLocal);
+
+    const flagsFindFirst = jest.fn().mockResolvedValue(null);
+    const insertReturning = jest
+      .fn()
+      .mockResolvedValue([{ tenantId: "local-seed-uuid", featureCheckoutPro: true }]);
+    const insertValues = jest
+      .fn()
+      .mockReturnValue({ returning: insertReturning });
+    const insertFn = jest.fn().mockReturnValue({ values: insertValues });
+
+    const updateReturning = jest.fn();
+    const updateWhere = jest
+      .fn()
+      .mockReturnValue({ returning: updateReturning });
+    const updateSet = jest.fn().mockReturnValue({ where: updateWhere });
+    const updateFn = jest.fn().mockReturnValue({ set: updateSet });
+
+    const db = {
+      query: {
+        tenants: { findFirst: tenantsFindFirst },
+        tenantFeatureFlags: { findFirst: flagsFindFirst },
+      },
+      insert: insertFn,
+      update: updateFn,
+    };
+
+    const sso = makeSsoClient({
+      id: "sso-bbc8b4b7",
+      slug: "fifia-doces",
+      name: "Fifia Doces",
+      vertical: "bakery",
+    });
+    await buildService(db, sso);
+
+    await service.updateFeatureFlags("sso-bbc8b4b7", {
+      featureCheckoutPro: true,
+    });
+
+    expect(insertValues).toHaveBeenCalledTimes(1);
+    const valuesArg = insertValues.mock.calls[0][0];
+    expect(valuesArg.tenantId).toBe("local-seed-uuid");
+    expect(valuesArg.featureCheckoutPro).toBe(true);
+  });
+});
+
 describe("TenantService.updateFeatureFlags with tenant sync", () => {
   let service: TenantService;
 

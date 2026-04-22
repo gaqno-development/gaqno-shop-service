@@ -8,10 +8,10 @@ interface FlagRow {
   readonly featureShipping?: boolean;
 }
 
-function makeDb(existing: FlagRow | null) {
+function makeDb(existing: FlagRow | null, tenantIdForResolve = "t-stub") {
   const findFirst = jest.fn().mockResolvedValue(existing);
   const tenantsFindFirst = jest.fn().mockResolvedValue({
-    id: "t-stub",
+    id: tenantIdForResolve,
     slug: "stub",
     name: "Stub",
   });
@@ -54,7 +54,7 @@ describe("TenantService.updateFeatureFlags", () => {
       featureRecipes: false,
       featureBakery: false,
     };
-    const { db, spies } = makeDb(existing);
+    const { db, spies } = makeDb(existing, "t1");
     const updatedRow = { ...existing, featureRecipes: true };
     spies.returning.mockResolvedValue([updatedRow]);
 
@@ -73,7 +73,7 @@ describe("TenantService.updateFeatureFlags", () => {
   });
 
   it("inserts new row when no flags exist yet for tenant", async () => {
-    const { db, spies } = makeDb(null);
+    const { db, spies } = makeDb(null, "t2");
     const createdRow = { tenantId: "t2", featureRecipes: true };
     spies.insertReturning.mockResolvedValue([createdRow]);
 
@@ -93,7 +93,7 @@ describe("TenantService.updateFeatureFlags", () => {
 
   it("ignores unknown keys in the patch", async () => {
     const existing: FlagRow = { tenantId: "t1" };
-    const { db, spies } = makeDb(existing);
+    const { db, spies } = makeDb(existing, "t1");
     spies.returning.mockResolvedValue([existing]);
 
     await buildService(db);
@@ -110,7 +110,7 @@ describe("TenantService.updateFeatureFlags", () => {
 
   it("does not include undefined flag values in the patch", async () => {
     const existing: FlagRow = { tenantId: "t1" };
-    const { db, spies } = makeDb(existing);
+    const { db, spies } = makeDb(existing, "t1");
     spies.returning.mockResolvedValue([existing]);
 
     await buildService(db);
