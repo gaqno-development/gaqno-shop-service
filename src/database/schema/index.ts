@@ -8,4 +8,5 @@ export * from "./loyalty";
 export * from "./wishlist";
 export * from "./dropshipping";
 export * from "./bakery";
+export * from "./coupons";
 export * from "./relations";

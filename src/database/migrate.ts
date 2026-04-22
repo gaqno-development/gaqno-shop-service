@@ -11,6 +11,7 @@ import { applyDropshippingColumns } from "./migration-steps/dropshipping-columns
 import { applyOAuthAccountsTable } from "./migration-steps/oauth-tables";
 import { applyLoyaltyTables } from "./migration-steps/loyalty-tables";
 import { applyBakeryTables } from "./migration-steps/bakery-tables";
+import { applyCouponTables } from "./migration-steps/coupon-tables";
 
 async function tableExists(sql: SqlClient, tableName: string): Promise<boolean> {
   const result = await sql`SELECT EXISTS (
@@ -52,6 +53,7 @@ export async function runMigrations(databaseUrl: string): Promise<void> {
     await applyOAuthAccountsTable(sql);
     await applyLoyaltyTables(sql);
     await applyBakeryTables(sql);
+    await applyCouponTables(sql);
     console.log("✅ Database migrations completed successfully");
   } catch (error) {
     console.error("❌ Migration failed:", error);
