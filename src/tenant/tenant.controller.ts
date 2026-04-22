@@ -30,6 +30,12 @@ export class TenantController {
     return this.tenantService.listActive();
   }
 
+  @Get("summary")
+  @UseGuards(PlatformAdminGuard)
+  async summary() {
+    return this.tenantService.listActiveWithSummary();
+  }
+
   @Get("resolve")
   async resolve(@Headers("x-tenant-domain") domain: string) {
     const tenant = await this.tenantService.resolve(domain);

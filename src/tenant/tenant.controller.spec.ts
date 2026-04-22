@@ -10,7 +10,10 @@ import {
 
 describe("TenantController.currentFeatureFlags", () => {
   let controller: TenantController;
-  let tenantService: { getFeatureFlags: jest.Mock };
+  let tenantService: {
+    getFeatureFlags: jest.Mock;
+    listActiveWithSummary: jest.Mock;
+  };
 
   const tenantContext: TenantContext = {
     tenantId: "tenant-123",
@@ -22,7 +25,10 @@ describe("TenantController.currentFeatureFlags", () => {
   };
 
   beforeEach(async () => {
-    tenantService = { getFeatureFlags: jest.fn() };
+    tenantService = {
+      getFeatureFlags: jest.fn(),
+      listActiveWithSummary: jest.fn(),
+    } as any;
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TenantController],
@@ -83,5 +89,27 @@ describe("TenantController.currentFeatureFlags", () => {
     expect(tenantService.getFeatureFlags).toHaveBeenCalledWith(
       tenantContext.tenantId,
     );
+  });
+
+  describe("summary", () => {
+    it("returns aggregated tenant KPIs from the service", async () => {
+      const summary = [
+        {
+          id: "t1",
+          name: "Fifia",
+          slug: "fifia",
+          logoUrl: null,
+          ordersCount30d: 5,
+          revenue30d: 500,
+          customersCount: 2,
+        },
+      ];
+      tenantService.listActiveWithSummary.mockResolvedValue(summary);
+
+      const result = await controller.summary();
+
+      expect(result).toEqual(summary);
+      expect(tenantService.listActiveWithSummary).toHaveBeenCalledTimes(1);
+    });
   });
 });
