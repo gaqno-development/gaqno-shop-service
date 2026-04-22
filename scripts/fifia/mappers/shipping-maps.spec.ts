@@ -1,29 +1,29 @@
-import { zoneToShippingMethod } from "./shipping-maps";
+import { zoneToShippingMethod, zoneSlug } from "./shipping-maps";
 
 describe("zoneToShippingMethod", () => {
-  it("builds a delivery method from a ShippingZone row", () => {
+  it("builds a shipping method from a fifia ShippingZone row", () => {
     const result = zoneToShippingMethod({
       id: "zone-1",
       name: "Centro",
-      description: "Entrega na região central",
-      price: "15.50",
-      minDeliveryDays: 1,
-      maxDeliveryDays: 2,
-      ceps: ["01310-100", "01311-000"],
-      active: true,
+      zipStart: "01000000",
+      zipEnd: "01999999",
+      fixedPrice: "15.50",
+      pricePerKm: "0",
+      isActive: true,
     });
 
     expect(result).toEqual({
       name: "Centro",
-      description: "Entrega na região central",
-      type: "delivery",
-      price: "15.50",
-      minDeliveryDays: 1,
-      maxDeliveryDays: 2,
-      active: true,
+      slug: "centro",
+      carrier: "local",
+      is_active: true,
+      flat_rate: "15.50",
+      handling_days: 1,
       settings: {
         sourceZoneId: "zone-1",
-        ceps: ["01310-100", "01311-000"],
+        zipStart: "01000-000",
+        zipEnd: "01999-999",
+        pricePerKm: "0.00",
       },
     });
   });
@@ -31,42 +31,35 @@ describe("zoneToShippingMethod", () => {
   it("coerces numeric price to fixed 2-decimal string", () => {
     const result = zoneToShippingMethod({
       id: "z2",
-      name: "Bairro",
-      description: null,
-      price: 10,
-      minDeliveryDays: null,
-      maxDeliveryDays: null,
-      ceps: [],
-      active: true,
+      name: "Bairro Alto",
+      zipStart: "02000000",
+      zipEnd: "02000999",
+      fixedPrice: 10,
+      pricePerKm: 0,
+      isActive: true,
     });
-    expect(result.price).toBe("10.00");
+    expect(result.flat_rate).toBe("10.00");
   });
 
-  it("defaults description to empty string when null", () => {
+  it("formats zip ranges as CEP with hyphen", () => {
     const result = zoneToShippingMethod({
       id: "z3",
       name: "X",
-      description: null,
-      price: "5",
-      minDeliveryDays: 1,
-      maxDeliveryDays: 1,
-      ceps: [],
-      active: true,
+      zipStart: "01310100",
+      zipEnd: "01310199",
+      fixedPrice: "5",
+      pricePerKm: "0",
+      isActive: true,
     });
-    expect(result.description).toBe("");
+    expect(result.settings.zipStart).toBe("01310-100");
+    expect(result.settings.zipEnd).toBe("01310-199");
   });
 
-  it("normalizes CEPs inside settings.ceps", () => {
-    const result = zoneToShippingMethod({
-      id: "z4",
-      name: "Y",
-      description: "",
-      price: "0",
-      minDeliveryDays: 0,
-      maxDeliveryDays: 0,
-      ceps: ["01310100", "CEP 02000-000", "abc"],
-      active: false,
-    });
-    expect(result.settings.ceps).toEqual(["01310-100", "02000-000"]);
+  it("generates url-safe slug from name", () => {
+    expect(zoneSlug("Centro de São Paulo")).toBe("centro-de-sao-paulo");
+    expect(zoneSlug("Região Metropolitana - Zona Sul")).toBe(
+      "regiao-metropolitana-zona-sul",
+    );
+    expect(zoneSlug("  extra   spaces  ")).toBe("extra-spaces");
   });
 });

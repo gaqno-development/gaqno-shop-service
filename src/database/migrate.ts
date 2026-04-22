@@ -16,6 +16,7 @@ import { applyTenantColumns } from "./migration-steps/tenant-columns";
 import { applyShippingTables } from "./migration-steps/shipping-tables";
 import { applyWishlistTables } from "./migration-steps/wishlist-tables";
 import { applyOrderPaymentColumns } from "./migration-steps/order-payment-columns";
+import { applyEtlIdMap } from "./migration-steps/etl-id-map";
 
 async function tableExists(sql: SqlClient, tableName: string): Promise<boolean> {
   const result = await sql`SELECT EXISTS (
@@ -62,6 +63,7 @@ export async function runMigrations(databaseUrl: string): Promise<void> {
     await applyLoyaltyTables(sql);
     await applyBakeryTables(sql);
     await applyCouponTables(sql);
+    await applyEtlIdMap(sql);
     console.log("✅ Database migrations completed successfully");
   } catch (error) {
     console.error("❌ Migration failed:", error);
