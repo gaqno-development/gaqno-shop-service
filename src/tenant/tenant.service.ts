@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import {
   customers,
@@ -8,6 +8,7 @@ import {
 } from "../database/schema";
 import { ShopDatabase } from "../database/shop-database.type";
 import { presetForVertical } from "../common/vertical.constants";
+import type { SsoPublicOrgProjection } from "../common/sso-tenant-client";
 
 export interface ITenantSummaryRow {
   readonly id: string;
@@ -24,7 +25,36 @@ const PAID_PAYMENT_STATUSES = ["approved", "authorized"] as const;
 
 @Injectable()
 export class TenantService {
+  private readonly logger = new Logger(TenantService.name);
+
   constructor(@Inject("DATABASE") private readonly db: ShopDatabase) {}
+
+  async upsertFromSso(projection: SsoPublicOrgProjection) {
+    if (!projection.slug) {
+      this.logger.warn(
+        `Cannot sync SSO tenant ${projection.id}: no slug provided`,
+      );
+      return null;
+    }
+    const existing = await this.getBySlug(projection.slug);
+    if (existing) {
+      return existing;
+    }
+    const [created] = await this.db
+      .insert(tenants)
+      .values({
+        id: projection.id,
+        slug: projection.slug,
+        name: projection.name,
+        vertical: projection.vertical ?? "generic",
+        isActive: true,
+      })
+      .returning();
+    this.logger.log(
+      `Synced SSO tenant ${projection.id} (slug=${projection.slug}) into shop DB`,
+    );
+    return created;
+  }
 
   resolve(domain: string) {
     return this.db.query.tenants.findFirst({
