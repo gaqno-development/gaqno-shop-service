@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { DatabaseModule } from "../database/database.module";
 import { PaymentGatewaysService } from "./payment-gateways.service";
 import { PaymentGatewaysController } from "./payment-gateways.controller";
 import { PaymentGatewayFactory } from "./payment-gateway.factory";
@@ -8,7 +9,7 @@ import { StripeProvider } from "./providers/stripe.provider";
 import { PagSeguroProvider } from "./providers/pagseguro.provider";
 
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, DatabaseModule],
   providers: [
     PaymentGatewaysService,
     PaymentGatewayFactory,
