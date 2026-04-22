@@ -10,6 +10,11 @@ interface FlagRow {
 
 function makeDb(existing: FlagRow | null) {
   const findFirst = jest.fn().mockResolvedValue(existing);
+  const tenantsFindFirst = jest.fn().mockResolvedValue({
+    id: "t-stub",
+    slug: "stub",
+    name: "Stub",
+  });
 
   const returning = jest.fn();
   const where = jest.fn().mockReturnValue({ returning });
@@ -23,6 +28,7 @@ function makeDb(existing: FlagRow | null) {
   return {
     db: {
       query: {
+        tenants: { findFirst: tenantsFindFirst },
         tenantFeatureFlags: { findFirst },
       },
       update: updateFn,

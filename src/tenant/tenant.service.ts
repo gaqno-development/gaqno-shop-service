@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import {
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import {
   customers,
@@ -8,7 +14,10 @@ import {
 } from "../database/schema";
 import { ShopDatabase } from "../database/shop-database.type";
 import { presetForVertical } from "../common/vertical.constants";
-import type { SsoPublicOrgProjection } from "../common/sso-tenant-client";
+import {
+  SsoTenantClient,
+  type SsoPublicOrgProjection,
+} from "../common/sso-tenant-client";
 import {
   TENANT_FEATURE_FLAG_KEYS,
   UpdateTenantFeatureFlagsDto,
@@ -31,7 +40,31 @@ const PAID_PAYMENT_STATUSES = ["approved", "authorized"] as const;
 export class TenantService {
   private readonly logger = new Logger(TenantService.name);
 
-  constructor(@Inject("DATABASE") private readonly db: ShopDatabase) {}
+  constructor(
+    @Inject("DATABASE") private readonly db: ShopDatabase,
+    @Optional() private readonly ssoClient?: SsoTenantClient,
+  ) {}
+
+  async ensureTenantExists(tenantId: string) {
+    const existing = await this.getById(tenantId);
+    if (existing) return existing;
+
+    if (this.ssoClient) {
+      try {
+        const projection = await this.ssoClient.getById(tenantId);
+        if (projection) {
+          const upserted = await this.upsertFromSso(projection);
+          if (upserted) return upserted;
+        }
+      } catch (error) {
+        this.logger.warn(
+          `Failed to lazy-sync tenant ${tenantId} from SSO: ${(error as Error).message}`,
+        );
+      }
+    }
+
+    throw new NotFoundException(`Tenant ${tenantId} not found`);
+  }
 
   async upsertFromSso(projection: SsoPublicOrgProjection) {
     if (!projection.slug) {
@@ -158,16 +191,20 @@ export class TenantService {
     });
   }
 
-  getFeatureFlags(tenantId: string) {
-    return this.db.query.tenantFeatureFlags.findFirst({
+  async getFeatureFlags(tenantId: string) {
+    await this.ensureTenantExists(tenantId);
+    const row = await this.db.query.tenantFeatureFlags.findFirst({
       where: eq(tenantFeatureFlags.tenantId, tenantId),
     });
+    return row ?? null;
   }
 
   async updateFeatureFlags(
     tenantId: string,
     patch: UpdateTenantFeatureFlagsDto,
   ) {
+    await this.ensureTenantExists(tenantId);
+
     const sanitized = TENANT_FEATURE_FLAG_KEYS.reduce<
       Partial<UpdateTenantFeatureFlagsDto>
     >((acc, key) => {

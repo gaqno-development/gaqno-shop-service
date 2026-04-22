@@ -7,6 +7,10 @@ import {
   PlatformAdminGuard,
   platformAdminHttpClientProvider,
 } from "../common/guards/platform-admin.guard";
+import {
+  SsoTenantClient,
+  ssoTenantHttpClientProvider,
+} from "../common/sso-tenant-client";
 
 @Module({
   imports: [
@@ -22,8 +26,10 @@ import {
     TenantService,
     PlatformAdminGuard,
     platformAdminHttpClientProvider,
+    SsoTenantClient,
+    ssoTenantHttpClientProvider,
   ],
   controllers: [TenantController, HealthController],
-  exports: [TenantService, JwtModule],
+  exports: [TenantService, JwtModule, SsoTenantClient],
 })
 export class TenantModule {}
