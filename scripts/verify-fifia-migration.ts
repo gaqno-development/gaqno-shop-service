@@ -128,8 +128,8 @@ async function run(): Promise<void> {
         targetArgs: [tenantId],
       },
       {
-        label: "customers",
-        sourceQuery: `SELECT COUNT(*) AS count FROM "User" WHERE role = 'CUSTOMER'`,
+        label: "customers (all users)",
+        sourceQuery: `SELECT COUNT(*) AS count FROM "User"`,
         targetQuery: `SELECT COUNT(*) AS count FROM customers WHERE tenant_id = $1`,
         targetArgs: [tenantId],
       },

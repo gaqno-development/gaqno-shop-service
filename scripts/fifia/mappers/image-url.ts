@@ -1,4 +1,9 @@
-export type ImageEntity = "product" | "asset" | "decoration" | "category";
+export type ImageEntity =
+  | "product"
+  | "asset"
+  | "decoration"
+  | "category"
+  | "hero";
 
 export interface BuildR2KeyInput {
   tenantSlug: string;

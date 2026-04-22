@@ -3,8 +3,29 @@ import * as path from "path";
 import { Pool } from "pg";
 import type { PoolClient } from "pg";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { randomUUID } from "crypto";
 import { createIdMap } from "./fifia/id-map";
 import type { IdMap } from "./fifia/id-map";
+
+function createInMemoryIdMap(): IdMap {
+  const m = new Map<string, string>();
+  return {
+    async lookup(table, id) {
+      return m.get(`${table}:${id}`) ?? null;
+    },
+    async remember(table, id, target) {
+      m.set(`${table}:${id}`, target);
+    },
+    async ensure(table, id, factory) {
+      const key = `${table}:${id}`;
+      const cached = m.get(key);
+      if (cached) return cached;
+      const next = await factory();
+      m.set(key, next);
+      return next;
+    },
+  };
+}
 import { createImageRehoster } from "./fifia/image-rehost";
 import type { ImageRehoster } from "./fifia/image-rehost";
 import {
@@ -36,7 +57,7 @@ const R2_ACCESS_KEY = process.env.R2_ACCESS_KEY;
 const R2_SECRET_KEY = process.env.R2_SECRET_KEY;
 const R2_ENDPOINT = process.env.R2_ENDPOINT;
 const R2_BUCKET = process.env.R2_BUCKET;
-const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL ?? "https://media.gaqno.com.br";
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL ?? "https://cdn.gaqno.com.br";
 
 if (!SRC_URL || !DST_URL) {
   console.error("Missing FIFIA_DATABASE_URL (source) and/or DATABASE_URL (target).");
@@ -129,6 +150,23 @@ interface InsertResult {
   id: string;
 }
 
+async function safeRehost(
+  rehoster: ImageRehoster,
+  input: {
+    entity: "product" | "category" | "decoration" | "hero" | "asset";
+    sourceId: string;
+    url: string;
+  },
+): Promise<string | null> {
+  try {
+    return await rehoster.rehost(input);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[rehost] skipped ${input.entity}/${input.sourceId}: ${msg}`);
+    return null;
+  }
+}
+
 async function insertReturningId(
   client: PoolClient,
   sql: string,
@@ -136,7 +174,7 @@ async function insertReturningId(
 ): Promise<string> {
   if (DRY_RUN) {
     console.log(`[DRY] ${sql.split("\n")[0].trim()} values=${values.length}`);
-    return "00000000-0000-0000-0000-000000000000";
+    return randomUUID();
   }
   const res = await client.query<InsertResult>(sql, values as unknown[]);
   if (!res.rows[0]) {
@@ -161,7 +199,7 @@ async function migrateCategories(
   for (const c of rows) {
     await ctx.idMap.ensure("Category", c.id, async () => {
       const imageUrl = c.image_url
-        ? await ctx.imageRehoster.rehost({
+        ? await safeRehost(ctx.imageRehoster, {
             entity: "category",
             sourceId: c.id,
             url: c.image_url,
@@ -302,7 +340,7 @@ async function migrateDecorations(
   for (const row of rows) {
     await ctx.idMap.ensure("Decoration", row.id, async () => {
       const imageUrl = row.image_url
-        ? await ctx.imageRehoster.rehost({
+        ? await safeRehost(ctx.imageRehoster, {
             entity: "decoration",
             sourceId: row.id,
             url: row.image_url,
@@ -386,7 +424,7 @@ async function migrateProducts(
   for (const img of images) {
     const productId = await ctx.idMap.lookup("Product", img.productId);
     if (!productId) continue;
-    const rehosted = await ctx.imageRehoster.rehost({
+    const rehosted = await safeRehost(ctx.imageRehoster, {
       entity: "product",
       sourceId: img.asset_id,
       url: img.url,
@@ -589,9 +627,8 @@ async function migrateCustomers(
   ctx: EtlContext,
 ): Promise<void> {
   const { rows } = await s.query(
-    `SELECT id, email, name, phone, "createdAt", "updatedAt"
-       FROM "User"
-       WHERE role = 'CUSTOMER'`,
+    `SELECT id, email, name, phone, role, "createdAt", "updatedAt"
+       FROM "User"`,
   );
   console.log(`[customers] ${rows.length}`);
   for (const u of rows) {
@@ -616,7 +653,11 @@ async function migrateCustomers(
           firstName,
           lastName,
           u.phone,
-          JSON.stringify({ source: "fifia_doces", source_id: u.id }),
+          JSON.stringify({
+            source: "fifia_doces",
+            source_id: u.id,
+            role: u.role,
+          }),
           u.createdAt,
           u.updatedAt,
         ],
@@ -789,7 +830,7 @@ async function migrateOrders(
         ? await ctx.idMap.lookup("Product", it.productId)
         : null;
       const rehostedRef = it.referenceImageUrl
-        ? await ctx.imageRehoster.rehost({
+        ? await safeRehost(ctx.imageRehoster, {
             entity: "product",
             sourceId: `oi-ref-${it.id}`,
             url: it.referenceImageUrl,
@@ -965,7 +1006,7 @@ async function migrateSiteSettings(
   if (!row) return;
   console.log(`[site_settings] 1`);
   const heroUrl = row.hero_image_url
-    ? await ctx.imageRehoster.rehost({
+    ? await safeRehost(ctx.imageRehoster, {
         entity: "asset",
         sourceId: row.hero_asset_id ?? "hero",
         url: row.hero_image_url,
@@ -1013,7 +1054,7 @@ async function run(): Promise<void> {
   const d = await dst.connect();
   try {
     const tenantId = await resolveTenantId(d);
-    const idMap = createIdMap(d, tenantId);
+    const idMap = DRY_RUN ? createInMemoryIdMap() : createIdMap(d, tenantId);
     const imageRehoster = ensureR2Uploader();
     const ctx: EtlContext = {
       tenantId,
