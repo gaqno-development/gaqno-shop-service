@@ -24,10 +24,14 @@ describe("TenantController.currentFeatureFlags", () => {
     orderPrefix: "GS",
   };
 
+  let updateFeatureFlags: jest.Mock;
+
   beforeEach(async () => {
+    updateFeatureFlags = jest.fn();
     tenantService = {
       getFeatureFlags: jest.fn(),
       listActiveWithSummary: jest.fn(),
+      updateFeatureFlags,
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -89,6 +93,32 @@ describe("TenantController.currentFeatureFlags", () => {
     expect(tenantService.getFeatureFlags).toHaveBeenCalledWith(
       tenantContext.tenantId,
     );
+  });
+
+  describe("tenantFeatureFlags (admin-scoped)", () => {
+    it("GET /tenants/:tenantId/feature-flags returns flags from service", async () => {
+      const flags = { tenantId: "t-xyz", featureRecipes: true };
+      (tenantService.getFeatureFlags as jest.Mock).mockResolvedValue(flags);
+
+      const result = await controller.tenantFeatureFlags("t-xyz");
+
+      expect(result).toEqual(flags);
+      expect(tenantService.getFeatureFlags).toHaveBeenCalledWith("t-xyz");
+    });
+
+    it("PATCH /tenants/:tenantId/feature-flags delegates to service.updateFeatureFlags", async () => {
+      const updated = { tenantId: "t-xyz", featureRecipes: true };
+      updateFeatureFlags.mockResolvedValue(updated);
+
+      const result = await controller.updateTenantFeatureFlags("t-xyz", {
+        featureRecipes: true,
+      });
+
+      expect(result).toEqual(updated);
+      expect(updateFeatureFlags).toHaveBeenCalledWith("t-xyz", {
+        featureRecipes: true,
+      });
+    });
   });
 
   describe("summary", () => {

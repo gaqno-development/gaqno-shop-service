@@ -5,12 +5,15 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
   Post,
   UseGuards,
 } from "@nestjs/common";
 import { getCurrentTenant } from "../common/tenant-context";
 import { TenantService } from "./tenant.service";
 import { PlatformAdminGuard } from "../common/guards/platform-admin.guard";
+import { UpdateTenantFeatureFlagsDto } from "./dto/update-tenant-feature-flags.dto";
 
 @Controller()
 export class HealthController {
@@ -68,5 +71,20 @@ export class TenantController {
     const tenantId = getCurrentTenant()?.tenantId;
     if (!tenantId) return null;
     return this.tenantService.getFeatureFlags(tenantId);
+  }
+
+  @Get(":tenantId/feature-flags")
+  @UseGuards(PlatformAdminGuard)
+  async tenantFeatureFlags(@Param("tenantId") tenantId: string) {
+    return this.tenantService.getFeatureFlags(tenantId);
+  }
+
+  @Patch(":tenantId/feature-flags")
+  @UseGuards(PlatformAdminGuard)
+  async updateTenantFeatureFlags(
+    @Param("tenantId") tenantId: string,
+    @Body() dto: UpdateTenantFeatureFlagsDto,
+  ) {
+    return this.tenantService.updateFeatureFlags(tenantId, dto);
   }
 }

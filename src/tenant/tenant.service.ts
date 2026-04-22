@@ -9,6 +9,10 @@ import {
 import { ShopDatabase } from "../database/shop-database.type";
 import { presetForVertical } from "../common/vertical.constants";
 import type { SsoPublicOrgProjection } from "../common/sso-tenant-client";
+import {
+  TENANT_FEATURE_FLAG_KEYS,
+  UpdateTenantFeatureFlagsDto,
+} from "./dto/update-tenant-feature-flags.dto";
 
 export interface ITenantSummaryRow {
   readonly id: string;
@@ -158,6 +162,40 @@ export class TenantService {
     return this.db.query.tenantFeatureFlags.findFirst({
       where: eq(tenantFeatureFlags.tenantId, tenantId),
     });
+  }
+
+  async updateFeatureFlags(
+    tenantId: string,
+    patch: UpdateTenantFeatureFlagsDto,
+  ) {
+    const sanitized = TENANT_FEATURE_FLAG_KEYS.reduce<
+      Partial<UpdateTenantFeatureFlagsDto>
+    >((acc, key) => {
+      const value = patch[key];
+      if (typeof value === "boolean") {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
+
+    const existing = await this.db.query.tenantFeatureFlags.findFirst({
+      where: eq(tenantFeatureFlags.tenantId, tenantId),
+    });
+
+    if (existing) {
+      const [updated] = await this.db
+        .update(tenantFeatureFlags)
+        .set({ ...sanitized, updatedAt: new Date() })
+        .where(eq(tenantFeatureFlags.tenantId, tenantId))
+        .returning();
+      return updated;
+    }
+
+    const [created] = await this.db
+      .insert(tenantFeatureFlags)
+      .values({ tenantId, ...sanitized })
+      .returning();
+    return created;
   }
 
   async getVerticalPreset(tenantId: string) {
