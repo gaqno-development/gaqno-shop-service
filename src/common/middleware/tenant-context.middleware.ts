@@ -5,6 +5,7 @@ import { ConfigService } from "@nestjs/config";
 import { TenantService } from "../../tenant/tenant.service";
 import { tenantContextStorage, TenantContext } from "../tenant-context";
 import type { Tenant } from "../../database/schema";
+import { SsoTenantClient } from "../sso-tenant-client";
 
 interface JwtPayload {
   readonly sub?: string;
@@ -20,6 +21,7 @@ export class TenantContextMiddleware implements NestMiddleware {
     private readonly tenantService: TenantService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly ssoClient: SsoTenantClient,
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -46,11 +48,37 @@ export class TenantContextMiddleware implements NestMiddleware {
     if (byDomain) return byDomain;
 
     const tenantIdFromJwt = this.extractTenantIdFromAuth(req);
-    if (tenantIdFromJwt) {
-      return this.tenantService.getById(tenantIdFromJwt);
-    }
+    if (!tenantIdFromJwt) return null;
 
-    return null;
+    const byId = await this.tenantService.getById(tenantIdFromJwt);
+    if (byId) return byId;
+
+    return this.lazySyncFromSso(tenantIdFromJwt);
+  }
+
+  private async lazySyncFromSso(
+    ssoTenantId: string,
+  ): Promise<Tenant | null | undefined> {
+    try {
+      const projection = await this.ssoClient.getById(ssoTenantId);
+      if (!projection) {
+        this.logger.warn(
+          `SSO returned no tenant for id ${ssoTenantId}; cannot sync`,
+        );
+        return null;
+      }
+      const upserted = await this.tenantService.upsertFromSso(projection);
+      if (upserted) return upserted as Tenant;
+      if (projection.slug) {
+        return this.tenantService.getBySlug(projection.slug);
+      }
+      return null;
+    } catch (error) {
+      this.logger.warn(
+        `Lazy SSO sync failed for ${ssoTenantId}: ${(error as Error).message}`,
+      );
+      return null;
+    }
   }
 
   private extractTenantIdFromAuth(req: Request): string | undefined {

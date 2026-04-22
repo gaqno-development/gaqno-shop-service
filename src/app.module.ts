@@ -32,6 +32,10 @@ import { PaymentGatewaysModule } from "./payment-gateways/payment-gateways.modul
 import { TenantContextMiddleware } from "./common/middleware/tenant-context.middleware";
 import { FeatureFlagGuard } from "./common/guards/feature-flag.guard";
 import { TenantService } from "./tenant/tenant.service";
+import {
+  SsoTenantClient,
+  ssoTenantHttpClientProvider,
+} from "./common/sso-tenant-client";
 
 @Module({
   imports: [
@@ -76,7 +80,12 @@ import { TenantService } from "./tenant/tenant.service";
     PaymentGatewaysModule,
   ],
   controllers: [],
-  providers: [TenantContextMiddleware, FeatureFlagGuard],
+  providers: [
+    TenantContextMiddleware,
+    FeatureFlagGuard,
+    SsoTenantClient,
+    ssoTenantHttpClientProvider,
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
