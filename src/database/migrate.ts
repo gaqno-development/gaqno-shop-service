@@ -12,6 +12,7 @@ import { applyOAuthAccountsTable } from "./migration-steps/oauth-tables";
 import { applyLoyaltyTables } from "./migration-steps/loyalty-tables";
 import { applyBakeryTables } from "./migration-steps/bakery-tables";
 import { applyCouponTables } from "./migration-steps/coupon-tables";
+import { applyTenantColumns } from "./migration-steps/tenant-columns";
 
 async function tableExists(sql: SqlClient, tableName: string): Promise<boolean> {
   const result = await sql`SELECT EXISTS (
@@ -51,6 +52,7 @@ export async function runMigrations(databaseUrl: string): Promise<void> {
       await applyDropshippingColumns(sql);
     }
     await applyOAuthAccountsTable(sql);
+    await applyTenantColumns(sql);
     await applyLoyaltyTables(sql);
     await applyBakeryTables(sql);
     await applyCouponTables(sql);
