@@ -36,6 +36,27 @@
       "when": 1776215637693,
       "tag": "0004_dropshipping_tickets",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1776215637694,
+      "tag": "0005_tenant_payment_gateways",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1776215637695,
+      "tag": "0006_tenant_vertical",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1776215637696,
+      "tag": "0007_order_payment_fields",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,12 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import { ConfigService } from "@nestjs/config";
 import { TenantController } from "./tenant.controller";
 import { TenantService } from "./tenant.service";
 import { tenantContextStorage, TenantContext } from "../common/tenant-context";
+import {
+  PLATFORM_ADMIN_HTTP_CLIENT,
+  PlatformAdminGuard,
+} from "../common/guards/platform-admin.guard";
 
 describe("TenantController.currentFeatureFlags", () => {
   let controller: TenantController;
@@ -21,8 +26,22 @@ describe("TenantController.currentFeatureFlags", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TenantController],
-      providers: [{ provide: TenantService, useValue: tenantService }],
-    }).compile();
+      providers: [
+        { provide: TenantService, useValue: tenantService },
+        {
+          provide: PLATFORM_ADMIN_HTTP_CLIENT,
+          useValue: { get: jest.fn() },
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue("http://sso.test") },
+        },
+        PlatformAdminGuard,
+      ],
+    })
+      .overrideGuard(PlatformAdminGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<TenantController>(TenantController);
   });

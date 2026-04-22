@@ -9,6 +9,7 @@ import {
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { paymentProviderEnum } from "./enums";
 
 export const tenants = pgTable(
   "tenants",
@@ -25,6 +26,11 @@ export const tenants = pgTable(
     faviconUrl: varchar("favicon_url", { length: 500 }),
     isActive: boolean("is_active").default(true),
     isDropshipping: boolean("is_dropshipping").default(false),
+    vertical: varchar("vertical", { length: 20 }).default("generic"),
+    layoutHint: varchar("layout_hint", { length: 50 }).default("generic-grid"),
+    terminologyKey: varchar("terminology_key", { length: 50 }).default(
+      "generic",
+    ),
     orderPrefix: varchar("order_prefix", { length: 10 }).default("ORD"),
     mercadoPagoAccessToken: varchar("mercado_pago_access_token", { length: 500 }),
     mercadoPagoPublicKey: varchar("mercado_pago_public_key", { length: 500 }),
@@ -63,6 +69,30 @@ export const tenantFeatureFlags = pgTable(
   }),
 );
 
+export const tenantPaymentGateways = pgTable(
+  "tenant_payment_gateways",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    provider: paymentProviderEnum("provider").notNull(),
+    credentials: jsonb("credentials").default({}),
+    isActive: boolean("is_active").default(false),
+    isDefault: boolean("is_default").default(false),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    tenantProviderUnique: uniqueIndex(
+      "tenant_payment_gateways_tenant_provider_unique",
+    ).on(table.tenantId, table.provider),
+    tenantIdx: index("tenant_payment_gateways_tenant_idx").on(table.tenantId),
+  }),
+);
+
 export type Tenant = typeof tenants.$inferSelect;
 export type NewTenant = typeof tenants.$inferInsert;
 export type TenantFeatureFlags = typeof tenantFeatureFlags.$inferSelect;
+export type TenantPaymentGateway = typeof tenantPaymentGateways.$inferSelect;
+export type NewTenantPaymentGateway = typeof tenantPaymentGateways.$inferInsert;

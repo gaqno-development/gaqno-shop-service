@@ -28,6 +28,7 @@ import { AdminEventsModule } from "./bakery/events/admin-events.module";
 import { SiteSettingsModule } from "./bakery/site-settings/site-settings.module";
 import { BakeryAssetsModule } from "./bakery/assets/bakery-assets.module";
 import { CouponsModule } from "./coupons/coupons.module";
+import { PaymentGatewaysModule } from "./payment-gateways/payment-gateways.module";
 import { TenantContextMiddleware } from "./common/middleware/tenant-context.middleware";
 import { FeatureFlagGuard } from "./common/guards/feature-flag.guard";
 import { TenantService } from "./tenant/tenant.service";
@@ -72,6 +73,7 @@ import { TenantService } from "./tenant/tenant.service";
     SiteSettingsModule,
     BakeryAssetsModule,
     CouponsModule,
+    PaymentGatewaysModule,
   ],
   controllers: [],
   providers: [TenantContextMiddleware, FeatureFlagGuard],

@@ -3,6 +3,10 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { TenantService } from "./tenant.service";
 import { TenantController, HealthController } from "./tenant.controller";
+import {
+  PlatformAdminGuard,
+  platformAdminHttpClientProvider,
+} from "../common/guards/platform-admin.guard";
 
 @Module({
   imports: [
@@ -14,7 +18,11 @@ import { TenantController, HealthController } from "./tenant.controller";
       inject: [ConfigService],
     }),
   ],
-  providers: [TenantService],
+  providers: [
+    TenantService,
+    PlatformAdminGuard,
+    platformAdminHttpClientProvider,
+  ],
   controllers: [TenantController, HealthController],
   exports: [TenantService, JwtModule],
 })

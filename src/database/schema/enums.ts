@@ -33,3 +33,9 @@ export const paymentMethodEnum = pgEnum("payment_method", [
   "boleto",
   "wallet",
 ]);
+
+export const paymentProviderEnum = pgEnum("payment_provider", [
+  "mercado_pago",
+  "stripe",
+  "pagseguro",
+]);

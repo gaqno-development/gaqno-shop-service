@@ -10,13 +10,14 @@ import {
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { tenants } from "./tenant";
+import { tenants, tenantPaymentGateways } from "./tenant";
 import { customers } from "./customer";
 import { products, productVariations } from "./catalog";
 import {
   orderStatusEnum,
   paymentStatusEnum,
   paymentMethodEnum,
+  paymentProviderEnum,
 } from "./enums";
 
 export const orders = pgTable(
@@ -35,6 +36,15 @@ export const orders = pgTable(
     paymentExternalUrl: varchar("payment_external_url", { length: 500 }),
     pixQrCode: text("pix_qr_code"),
     pixQrCodeBase64: text("pix_qr_code_base64"),
+    pixExpiresAt: timestamp("pix_expires_at"),
+    paymentProvider: paymentProviderEnum("payment_provider"),
+    paymentGatewayId: uuid("payment_gateway_id").references(
+      () => tenantPaymentGateways.id,
+      { onDelete: "set null" },
+    ),
+    paymentIdempotencyKey: varchar("payment_idempotency_key", { length: 120 }),
+    paymentFailureReason: text("payment_failure_reason"),
+    webhookLastReceivedAt: timestamp("webhook_last_received_at"),
     subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
     discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default("0"),
     shippingAmount: decimal("shipping_amount", { precision: 10, scale: 2 }).default("0"),
