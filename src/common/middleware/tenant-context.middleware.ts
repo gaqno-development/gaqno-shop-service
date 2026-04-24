@@ -54,6 +54,11 @@ export class TenantContextMiddleware implements NestMiddleware {
     const lookupDomain = domainHeader || host;
     const byDomain = await this.tenantService.resolve(lookupDomain);
     if (byDomain) return byDomain;
+    const slugFromDomain = this.extractSlugFromDomain(lookupDomain);
+    if (slugFromDomain) {
+      const byDerivedSlug = await this.tenantService.getBySlug(slugFromDomain);
+      if (byDerivedSlug) return byDerivedSlug;
+    }
     return null;
   }
 
@@ -102,5 +107,13 @@ export class TenantContextMiddleware implements NestMiddleware {
       isDropshipping: Boolean(tenant.isDropshipping),
       orderPrefix: tenant.orderPrefix ?? "ORD",
     };
+  }
+
+  private extractSlugFromDomain(domain: string): string | null {
+    const normalized = domain.trim().toLowerCase().replace(/:\d+$/, "");
+    const hostname = normalized.replace(/^https?:\/\//, "").split("/")[0];
+    if (!hostname.endsWith(".gaqno.com.br")) return null;
+    const slug = hostname.replace(/\.gaqno\.com\.br$/, "");
+    return slug && !slug.includes(".") ? slug : null;
   }
 }

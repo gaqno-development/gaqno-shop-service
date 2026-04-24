@@ -171,6 +171,23 @@ describe("TenantContextMiddleware", () => {
     expect(tenantContextStorage.getStore()).toBeUndefined();
   });
 
+  it("falls back to company slug derived from gaqno domain", async () => {
+    tenantService.resolve.mockResolvedValue(undefined as any);
+    tenantService.getBySlug.mockResolvedValue(tenant as any);
+    const next = jest.fn().mockImplementation(() => {
+      expect(tenantContextStorage.getStore()?.tenantId).toBe("sso-id-1");
+    });
+
+    await middleware.use(
+      makeReq({ "x-tenant-domain": "fifiadoces.gaqno.com.br" }) as any,
+      {} as any,
+      next,
+    );
+
+    expect(tenantService.getBySlug).toHaveBeenCalledWith("fifiadoces");
+    expect(next).toHaveBeenCalled();
+  });
+
   it("gracefully continues when SSO client throws", async () => {
     jwtService.verify.mockReturnValue({ tenantId: "sso-id-1" } as any);
     tenantService.getBySlug.mockResolvedValue(undefined as any);
