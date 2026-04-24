@@ -1,3 +1,4 @@
+import { NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { TenantContextMiddleware } from "./tenant-context.middleware";
@@ -31,6 +32,7 @@ describe("TenantContextMiddleware", () => {
       resolve: jest.fn(),
       getById: jest.fn(),
       upsertFromSso: jest.fn(),
+      ensureTenantExists: jest.fn(),
     } as unknown as jest.Mocked<TenantService>;
     jwtService = {
       verify: jest.fn(),
@@ -71,7 +73,7 @@ describe("TenantContextMiddleware", () => {
     const tenantFromJwt = { ...tenant, id: "jwt-tenant", slug: "jwt-slug" };
     const spoofedTenant = { ...tenant, id: "spoof-tenant", slug: "spoofed" };
     jwtService.verify.mockReturnValue({ tenantId: "jwt-tenant" } as any);
-    tenantService.getById.mockResolvedValue(tenantFromJwt as any);
+    tenantService.ensureTenantExists.mockResolvedValue(tenantFromJwt as any);
     tenantService.getBySlug.mockResolvedValue(spoofedTenant as any);
     const next = jest.fn().mockImplementation(() => {
       expect(tenantContextStorage.getStore()?.tenantId).toBe("jwt-tenant");
@@ -86,7 +88,8 @@ describe("TenantContextMiddleware", () => {
       next,
     );
 
-    expect(tenantService.getById).toHaveBeenCalledWith("jwt-tenant");
+    expect(tenantService.ensureTenantExists).toHaveBeenCalledWith("jwt-tenant");
+    expect(tenantService.getBySlug).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalled();
   });
 
@@ -94,7 +97,7 @@ describe("TenantContextMiddleware", () => {
     jwtService.verify.mockReturnValue({ tenantId: "sso-id-1" } as any);
     tenantService.getBySlug.mockResolvedValue(undefined as any);
     tenantService.resolve.mockResolvedValue(undefined as any);
-    tenantService.getById.mockResolvedValue(tenant as any);
+    tenantService.ensureTenantExists.mockResolvedValue(tenant as any);
     const next = jest.fn().mockImplementation(() => {
       expect(tenantContextStorage.getStore()?.tenantId).toBe("sso-id-1");
     });
@@ -105,20 +108,13 @@ describe("TenantContextMiddleware", () => {
       next,
     );
 
-    expect(ssoClient.getById).not.toHaveBeenCalled();
+    expect(tenantService.ensureTenantExists).toHaveBeenCalledWith("sso-id-1");
     expect(next).toHaveBeenCalled();
   });
 
   it("on local getById miss, falls back to SSO and upserts by SSO tenant id", async () => {
     jwtService.verify.mockReturnValue({ tenantId: "sso-id-1" } as any);
-    tenantService.getById.mockResolvedValue(undefined as any);
-    ssoClient.getById.mockResolvedValue({
-      id: "sso-id-1",
-      slug: "acme",
-      name: "Acme",
-      vertical: "bakery",
-    });
-    tenantService.upsertFromSso.mockResolvedValue(tenant as any);
+    tenantService.ensureTenantExists.mockResolvedValue(tenant as any);
     const next = jest.fn().mockImplementation(() => {
       expect(tenantContextStorage.getStore()?.tenantId).toBe("sso-id-1");
     });
@@ -129,21 +125,15 @@ describe("TenantContextMiddleware", () => {
       next,
     );
 
-    expect(ssoClient.getById).toHaveBeenCalledWith("sso-id-1");
-    expect(tenantService.upsertFromSso).toHaveBeenCalled();
+    expect(tenantService.ensureTenantExists).toHaveBeenCalledWith("sso-id-1");
     expect(next).toHaveBeenCalled();
   });
 
   it("does not fallback by slug when SSO upsert fails", async () => {
     jwtService.verify.mockReturnValue({ tenantId: "sso-id-1" } as any);
-    tenantService.getById.mockResolvedValue(undefined as any);
-    ssoClient.getById.mockResolvedValue({
-      id: "sso-id-1",
-      slug: "acme",
-      name: "Acme",
-      vertical: "bakery",
-    });
-    tenantService.upsertFromSso.mockResolvedValue(null as any);
+    tenantService.ensureTenantExists.mockRejectedValue(
+      new NotFoundException("Tenant sso-id-1 not found"),
+    );
     tenantService.getBySlug.mockResolvedValue({ ...tenant, id: "legacy-id" } as any);
     tenantService.resolve.mockResolvedValue(undefined as any);
     const next = jest.fn();
@@ -157,6 +147,28 @@ describe("TenantContextMiddleware", () => {
     expect(tenantService.getBySlug).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalled();
     expect(tenantContextStorage.getStore()).toBeUndefined();
+  });
+
+  it("prioritizes x-tenant-id header over JWT tenantId", async () => {
+    const headerTenant = { ...tenant, id: "fifia-shop", slug: "fifia-doces" };
+    jwtService.verify.mockReturnValue({ tenantId: "jwt-home" } as any);
+    tenantService.ensureTenantExists.mockResolvedValue(headerTenant as any);
+    const next = jest.fn().mockImplementation(() => {
+      expect(tenantContextStorage.getStore()?.tenantId).toBe("fifia-shop");
+    });
+
+    await middleware.use(
+      makeReq({
+        authorization: "Bearer xyz",
+        "x-tenant-id": "fifia-shop",
+      }) as any,
+      {} as any,
+      next,
+    );
+
+    expect(tenantService.ensureTenantExists).toHaveBeenCalledTimes(1);
+    expect(tenantService.ensureTenantExists).toHaveBeenCalledWith("fifia-shop");
+    expect(next).toHaveBeenCalled();
   });
 
   it("when no tenant can be resolved, calls next with empty context", async () => {
@@ -258,8 +270,7 @@ describe("TenantContextMiddleware", () => {
     jwtService.verify.mockReturnValue({ tenantId: "sso-id-1" } as any);
     tenantService.getBySlug.mockResolvedValue(undefined as any);
     tenantService.resolve.mockResolvedValue(undefined as any);
-    tenantService.getById.mockResolvedValue(undefined as any);
-    ssoClient.getById.mockRejectedValue(new Error("boom"));
+    tenantService.ensureTenantExists.mockRejectedValue(new Error("boom"));
     const next = jest.fn();
 
     await middleware.use(
@@ -278,7 +289,6 @@ describe("TenantContextMiddleware", () => {
     jwtService.decode.mockReturnValue({ tenantId: "spoof-tenant" } as any);
     tenantService.getBySlug.mockResolvedValue(undefined as any);
     tenantService.resolve.mockResolvedValue(undefined as any);
-    tenantService.getById.mockResolvedValue(undefined as any);
     const next = jest.fn();
 
     await middleware.use(
@@ -287,7 +297,7 @@ describe("TenantContextMiddleware", () => {
       next,
     );
 
-    expect(tenantService.getById).not.toHaveBeenCalled();
+    expect(tenantService.ensureTenantExists).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalled();
   });
 });

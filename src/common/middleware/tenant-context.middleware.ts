@@ -35,12 +35,18 @@ export class TenantContextMiddleware implements NestMiddleware {
   }
 
   private async resolveTenant(req: Request): Promise<Tenant | null | undefined> {
+    const headerTenantId = (
+      req.headers["x-tenant-id"] as string | undefined
+    )?.trim();
+    if (headerTenantId) {
+      const fromHeader = await this.resolveTenantFromId(headerTenantId);
+      if (fromHeader) return fromHeader;
+    }
+
     const tenantIdFromJwt = this.extractTenantIdFromAuth(req);
     if (tenantIdFromJwt) {
-      const byId = await this.tenantService.getById(tenantIdFromJwt);
-      if (byId) return byId;
-      const synced = await this.lazySyncFromSso(tenantIdFromJwt);
-      if (synced) return synced;
+      const fromJwt = await this.resolveTenantFromId(tenantIdFromJwt);
+      if (fromJwt) return fromJwt;
     }
 
     const slugHeader = req.headers["x-tenant-slug"] as string | undefined;
@@ -72,6 +78,16 @@ export class TenantContextMiddleware implements NestMiddleware {
       }
     }
     return null;
+  }
+
+  private async resolveTenantFromId(tenantId: string): Promise<Tenant | null> {
+    try {
+      const row = await this.tenantService.ensureTenantExists(tenantId);
+      if (!row) return null;
+      return row as Tenant;
+    } catch {
+      return null;
+    }
   }
 
   private async lazySyncFromSso(
