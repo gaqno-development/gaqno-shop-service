@@ -1,8 +1,12 @@
 import { Injectable } from "@nestjs/common";
-import { and, count, eq, gte, lte, sql } from "drizzle-orm";
+import { and, count, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { DrizzleService } from "../database/drizzle.service";
 import { orders } from "../database/schema";
-import { HourlySales, PaymentMethodStats } from "./analytics.types";
+import {
+  ANALYTICS_COUNTED_PAYMENT_STATUSES,
+  HourlySales,
+  PaymentMethodStats,
+} from "./analytics.types";
 
 const HOURS_IN_DAY = 24;
 
@@ -22,7 +26,7 @@ export class AnalyticsOperationalService {
         and(
           eq(orders.tenantId, tenantId),
           sql`DATE(${orders.createdAt}) = DATE(${date})`,
-          eq(orders.paymentStatus, "approved"),
+          inArray(orders.paymentStatus, ANALYTICS_COUNTED_PAYMENT_STATUSES),
         ),
       )
       .groupBy(sql`EXTRACT(HOUR FROM ${orders.createdAt})`)
@@ -58,7 +62,7 @@ export class AnalyticsOperationalService {
           eq(orders.tenantId, tenantId),
           gte(orders.createdAt, startDate),
           lte(orders.createdAt, endDate),
-          eq(orders.paymentStatus, "approved"),
+          inArray(orders.paymentStatus, ANALYTICS_COUNTED_PAYMENT_STATUSES),
         ),
       )
       .groupBy(orders.paymentMethod);

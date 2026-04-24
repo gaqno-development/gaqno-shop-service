@@ -1,3 +1,7 @@
+export const ANALYTICS_COUNTED_PAYMENT_STATUSES: Array<
+  "approved" | "authorized"
+> = ["approved", "authorized"];
+
 export interface DashboardStats {
   totalRevenue: number;
   totalOrders: number;

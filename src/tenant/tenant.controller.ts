@@ -14,6 +14,8 @@ import { getCurrentTenant } from "../common/tenant-context";
 import { TenantService } from "./tenant.service";
 import { PlatformAdminGuard } from "../common/guards/platform-admin.guard";
 import { UpdateTenantFeatureFlagsDto } from "./dto/update-tenant-feature-flags.dto";
+import { UpdateTenantProfileDto } from "./dto/update-tenant-profile.dto";
+import { SyncFromSsoDto } from "./dto/sync-from-sso.dto";
 
 @Controller()
 export class HealthController {
@@ -66,6 +68,14 @@ export class TenantController {
     return { success: Boolean(tenant), tenant };
   }
 
+  @Post("sync-from-sso")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(PlatformAdminGuard)
+  async syncFromSso(@Body() body: SyncFromSsoDto) {
+    const tenant = await this.tenantService.syncFromSso(body.ssoTenantId);
+    return { tenant };
+  }
+
   @Get("current/feature-flags")
   async currentFeatureFlags() {
     const tenantId = getCurrentTenant()?.tenantId;
@@ -79,6 +89,14 @@ export class TenantController {
     return this.tenantService.getFeatureFlags(tenantId);
   }
 
+  @Get(":tenantId")
+  @UseGuards(PlatformAdminGuard)
+  async platformTenantDetail(@Param("tenantId") tenantId: string) {
+    const tenant = await this.tenantService.ensureTenantExists(tenantId);
+    const featureFlags = await this.tenantService.getFeatureFlags(tenantId);
+    return { tenant, featureFlags };
+  }
+
   @Patch(":tenantId/feature-flags")
   @UseGuards(PlatformAdminGuard)
   async updateTenantFeatureFlags(
@@ -86,5 +104,14 @@ export class TenantController {
     @Body() dto: UpdateTenantFeatureFlagsDto,
   ) {
     return this.tenantService.updateFeatureFlags(tenantId, dto);
+  }
+
+  @Patch(":tenantId")
+  @UseGuards(PlatformAdminGuard)
+  async updateTenantProfile(
+    @Param("tenantId") tenantId: string,
+    @Body() dto: UpdateTenantProfileDto,
+  ) {
+    return this.tenantService.updateProfile(tenantId, dto);
   }
 }

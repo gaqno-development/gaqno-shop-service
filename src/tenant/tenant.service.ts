@@ -1,11 +1,13 @@
 import {
+  ConflictException,
   Inject,
   Injectable,
   Logger,
   NotFoundException,
   Optional,
+  BadRequestException,
 } from "@nestjs/common";
-import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, ne, sql } from "drizzle-orm";
 import {
   customers,
   orders,
@@ -22,6 +24,7 @@ import {
   TENANT_FEATURE_FLAG_KEYS,
   UpdateTenantFeatureFlagsDto,
 } from "./dto/update-tenant-feature-flags.dto";
+import { UpdateTenantProfileDto } from "./dto/update-tenant-profile.dto";
 
 export interface ITenantSummaryRow {
   readonly id: string;
@@ -344,5 +347,169 @@ export class TenantService {
       terminologyKey: tenant?.terminologyKey ?? preset.terminologyKey,
       defaultFeatures: preset.defaultFeatures,
     };
+  }
+
+  private mergeIntoTenantSettings(
+    current: unknown,
+    dto: UpdateTenantProfileDto,
+  ): Record<string, unknown> {
+    const base: Record<string, unknown> =
+      current && typeof current === "object" && !Array.isArray(current)
+        ? { ...(current as Record<string, unknown>) }
+        : {};
+    if (dto.adminDomain !== undefined) {
+      const v = dto.adminDomain;
+      if (v === null || v === "") delete base.adminDomain;
+      else base.adminDomain = String(v).trim();
+    }
+    if (dto.publicShopUrl !== undefined) {
+      const v = dto.publicShopUrl;
+      if (v === null || v === "") delete base.publicShopUrl;
+      else base.publicShopUrl = String(v).trim();
+    }
+    if (dto.analyticsMeasurementId !== undefined) {
+      const v = dto.analyticsMeasurementId;
+      if (v === null || v === "") delete base.analyticsMeasurementId;
+      else base.analyticsMeasurementId = String(v).trim();
+    }
+    if (dto.analyticsEnabled !== undefined) {
+      base.analyticsEnabled = dto.analyticsEnabled;
+    }
+    return base;
+  }
+
+  async updateProfile(tenantId: string, dto: UpdateTenantProfileDto) {
+    const resolved = await this.ensureTenantExists(tenantId);
+    const id = resolved.id;
+
+    if (dto.slug !== undefined && dto.slug !== resolved.slug) {
+      const taken = await this.db.query.tenants.findFirst({
+        where: and(eq(tenants.slug, dto.slug), ne(tenants.id, id)),
+      });
+      if (taken) {
+        throw new ConflictException("Slug already in use");
+      }
+    }
+
+    if (dto.domain !== undefined) {
+      const nextDomain =
+        dto.domain === null || dto.domain === ""
+          ? null
+          : dto.domain.trim();
+      const prev = resolved.domain ?? null;
+      if (nextDomain !== prev && nextDomain) {
+        const taken = await this.db.query.tenants.findFirst({
+          where: and(eq(tenants.domain, nextDomain), ne(tenants.id, id)),
+        });
+        if (taken) {
+          throw new ConflictException("Domain already in use");
+        }
+      }
+    }
+
+    const patch: {
+      updatedAt: Date;
+      name?: string;
+      slug?: string;
+      domain?: string | null;
+      description?: string | null;
+      primaryColor?: string;
+      bgColor?: string;
+      secondaryColor?: string;
+      logoUrl?: string | null;
+      faviconUrl?: string | null;
+      isActive?: boolean;
+      isDropshipping?: boolean;
+      vertical?: string;
+      layoutHint?: string;
+      terminologyKey?: string;
+      orderPrefix?: string;
+      settings?: Record<string, unknown>;
+    } = { updatedAt: new Date() };
+
+    if (dto.name !== undefined) patch.name = dto.name;
+    if (dto.slug !== undefined) patch.slug = dto.slug;
+    if (dto.domain !== undefined) {
+      patch.domain =
+        dto.domain === null || dto.domain === ""
+          ? null
+          : dto.domain.trim();
+    }
+    if (dto.description !== undefined) {
+      patch.description =
+        dto.description === null || dto.description === ""
+          ? null
+          : dto.description;
+    }
+    if (dto.primaryColor !== undefined) patch.primaryColor = dto.primaryColor;
+    if (dto.bgColor !== undefined) patch.bgColor = dto.bgColor;
+    if (dto.secondaryColor !== undefined) {
+      patch.secondaryColor = dto.secondaryColor;
+    }
+    if (dto.logoUrl !== undefined) {
+      patch.logoUrl =
+        dto.logoUrl === null || dto.logoUrl === "" ? null : dto.logoUrl;
+    }
+    if (dto.faviconUrl !== undefined) {
+      patch.faviconUrl =
+        dto.faviconUrl === null || dto.faviconUrl === "" ? null : dto.faviconUrl;
+    }
+    if (dto.isActive !== undefined) patch.isActive = dto.isActive;
+    if (dto.isDropshipping !== undefined) {
+      patch.isDropshipping = dto.isDropshipping;
+    }
+    if (dto.vertical !== undefined) patch.vertical = dto.vertical;
+    if (dto.layoutHint !== undefined) patch.layoutHint = dto.layoutHint;
+    if (dto.terminologyKey !== undefined) {
+      patch.terminologyKey = dto.terminologyKey;
+    }
+    if (dto.orderPrefix !== undefined) patch.orderPrefix = dto.orderPrefix;
+
+    if (
+      dto.adminDomain !== undefined ||
+      dto.publicShopUrl !== undefined ||
+      dto.analyticsMeasurementId !== undefined ||
+      dto.analyticsEnabled !== undefined
+    ) {
+      patch.settings = this.mergeIntoTenantSettings(resolved.settings, dto);
+    }
+
+    const [updated] = await this.db
+      .update(tenants)
+      .set(patch)
+      .where(eq(tenants.id, id))
+      .returning();
+
+    return updated ?? resolved;
+  }
+
+  async syncFromSso(ssoTenantId: string) {
+    if (!this.ssoClient) {
+      throw new BadRequestException("SSO sync is not configured");
+    }
+    const projection = await this.ssoClient.getById(ssoTenantId);
+    if (!projection?.slug) {
+      throw new NotFoundException(
+        `SSO organization ${ssoTenantId} not found or has no slug`,
+      );
+    }
+    const row = await this.upsertFromSso(projection);
+    if (!row) {
+      throw new BadRequestException("Failed to sync tenant from SSO");
+    }
+    await this.ensureDefaultFeatureFlags(row.id);
+    return row;
+  }
+
+  private async ensureDefaultFeatureFlags(localTenantId: string) {
+    const existing = await this.db.query.tenantFeatureFlags.findFirst({
+      where: eq(tenantFeatureFlags.tenantId, localTenantId),
+    });
+    if (existing) return existing;
+    const [created] = await this.db
+      .insert(tenantFeatureFlags)
+      .values({ tenantId: localTenantId })
+      .returning();
+    return created;
   }
 }

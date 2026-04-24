@@ -1,8 +1,12 @@
 import { Injectable } from "@nestjs/common";
-import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { DrizzleService } from "../database/drizzle.service";
 import { orderItems, orders, products } from "../database/schema";
-import { SalesByCategory, TopProduct } from "./analytics.types";
+import {
+  ANALYTICS_COUNTED_PAYMENT_STATUSES,
+  SalesByCategory,
+  TopProduct,
+} from "./analytics.types";
 
 @Injectable()
 export class AnalyticsProductsService {
@@ -28,7 +32,7 @@ export class AnalyticsProductsService {
           eq(orders.tenantId, tenantId),
           gte(orders.createdAt, startDate),
           lte(orders.createdAt, endDate),
-          eq(orders.paymentStatus, "approved"),
+          inArray(orders.paymentStatus, ANALYTICS_COUNTED_PAYMENT_STATUSES),
         ),
       )
       .groupBy(orderItems.productId)
@@ -62,7 +66,7 @@ export class AnalyticsProductsService {
           eq(orders.tenantId, tenantId),
           gte(orders.createdAt, startDate),
           lte(orders.createdAt, endDate),
-          eq(orders.paymentStatus, "approved"),
+          inArray(orders.paymentStatus, ANALYTICS_COUNTED_PAYMENT_STATUSES),
         ),
       )
       .groupBy(products.categoryId)

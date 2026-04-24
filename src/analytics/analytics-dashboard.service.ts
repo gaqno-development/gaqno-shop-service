@@ -1,8 +1,12 @@
 import { Injectable } from "@nestjs/common";
-import { and, count, eq, gte, lte, sql } from "drizzle-orm";
+import { and, count, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { DrizzleService } from "../database/drizzle.service";
 import { customers, orders } from "../database/schema";
-import { DashboardStats, RevenueData } from "./analytics.types";
+import {
+  ANALYTICS_COUNTED_PAYMENT_STATUSES,
+  DashboardStats,
+  RevenueData,
+} from "./analytics.types";
 
 const STATIC_CONVERSION_RATE = 2.5;
 
@@ -27,7 +31,7 @@ export class AnalyticsDashboardService {
           eq(orders.tenantId, tenantId),
           gte(orders.createdAt, startDate),
           lte(orders.createdAt, endDate),
-          eq(orders.paymentStatus, "approved"),
+          inArray(orders.paymentStatus, ANALYTICS_COUNTED_PAYMENT_STATUSES),
         ),
       )
       .groupBy(orders.tenantId);
@@ -82,7 +86,7 @@ export class AnalyticsDashboardService {
           eq(orders.tenantId, tenantId),
           gte(orders.createdAt, startDate),
           lte(orders.createdAt, endDate),
-          eq(orders.paymentStatus, "approved"),
+          inArray(orders.paymentStatus, ANALYTICS_COUNTED_PAYMENT_STATUSES),
         ),
       )
       .groupBy(sql`DATE(${orders.createdAt})`)
