@@ -16,6 +16,10 @@ export interface SsoPublicOrgProjection {
   readonly vertical: string | null;
 }
 
+interface SsoWhitelabelConfigProjection {
+  readonly tenantId?: string;
+}
+
 @Injectable()
 export class SsoTenantClient {
   private readonly logger = new Logger(SsoTenantClient.name);
@@ -51,6 +55,31 @@ export class SsoTenantClient {
       }
       this.logger.warn(
         `Failed to fetch tenant ${id} from SSO: ${axiosError.message ?? "unknown"}`,
+      );
+      return null;
+    }
+  }
+
+  async getTenantIdByDomain(domain: string): Promise<string | null> {
+    const baseUrl = this.configService.get<string>("SSO_SERVICE_URL");
+    if (!baseUrl || !domain) return null;
+    const url = `${baseUrl.replace(/\/+$/, "")}/v1/whitelabel/configs/by-domain`;
+    try {
+      const response = await this.httpClient.get<SsoWhitelabelConfigProjection[]>(
+        url,
+        {
+          params: { domain },
+          timeout: 3000,
+        },
+      );
+      const tenantId = response.data?.[0]?.tenantId;
+      return tenantId ?? null;
+    } catch (error) {
+      const axiosError = error as {
+        message?: string;
+      };
+      this.logger.warn(
+        `Failed to resolve tenant by domain ${domain} from SSO: ${axiosError.message ?? "unknown"}`,
       );
       return null;
     }

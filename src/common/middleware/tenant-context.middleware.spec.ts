@@ -41,6 +41,7 @@ describe("TenantContextMiddleware", () => {
     } as unknown as jest.Mocked<ConfigService>;
     ssoClient = {
       getById: jest.fn(),
+      getTenantIdByDomain: jest.fn(),
     } as unknown as jest.Mocked<SsoTenantClient>;
     middleware = new TenantContextMiddleware(
       tenantService,
@@ -185,6 +186,34 @@ describe("TenantContextMiddleware", () => {
     );
 
     expect(tenantService.getBySlug).toHaveBeenCalledWith("fifiadoces");
+    expect(next).toHaveBeenCalled();
+  });
+
+  it("falls back to SSO domain lookup and lazy sync when local domain and slug miss", async () => {
+    tenantService.resolve.mockResolvedValue(undefined as any);
+    tenantService.getBySlug.mockResolvedValue(undefined as any);
+    ssoClient.getTenantIdByDomain.mockResolvedValue("sso-id-1");
+    ssoClient.getById.mockResolvedValue({
+      id: "sso-id-1",
+      slug: "fifiadoces",
+      name: "Fifia Doces",
+      vertical: "bakery",
+    });
+    tenantService.upsertFromSso.mockResolvedValue(tenant as any);
+    const next = jest.fn().mockImplementation(() => {
+      expect(tenantContextStorage.getStore()?.tenantId).toBe("sso-id-1");
+    });
+
+    await middleware.use(
+      makeReq({ "x-tenant-domain": "fifiadoces.gaqno.com.br" }) as any,
+      {} as any,
+      next,
+    );
+
+    expect(ssoClient.getTenantIdByDomain).toHaveBeenCalledWith(
+      "fifiadoces.gaqno.com.br",
+    );
+    expect(ssoClient.getById).toHaveBeenCalledWith("sso-id-1");
     expect(next).toHaveBeenCalled();
   });
 

@@ -97,4 +97,25 @@ describe("SsoTenantClient", () => {
       expect.anything(),
     );
   });
+
+  it("should resolve tenant id by domain via whitelabel endpoint", async () => {
+    configService.get.mockImplementation((key: string) => {
+      if (key === "SSO_SERVICE_URL") return "http://sso:4001";
+      return undefined;
+    });
+    (httpClient.get as jest.Mock).mockResolvedValue({
+      data: [{ tenantId: "tenant-1" }],
+    });
+
+    const result = await client.getTenantIdByDomain("fifiadoces.gaqno.com.br");
+
+    expect(httpClient.get).toHaveBeenCalledWith(
+      "http://sso:4001/v1/whitelabel/configs/by-domain",
+      expect.objectContaining({
+        params: { domain: "fifiadoces.gaqno.com.br" },
+        timeout: 3000,
+      }),
+    );
+    expect(result).toBe("tenant-1");
+  });
 });
