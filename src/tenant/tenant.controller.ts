@@ -61,7 +61,7 @@ export class TenantController {
   @UseGuards(PlatformAdminGuard)
   async switch(@Body() body: { tenantId: string }) {
     const tenant = body?.tenantId
-      ? await this.tenantService.getById(body.tenantId)
+      ? await this.tenantService.ensureTenantExists(body.tenantId)
       : null;
     return { success: Boolean(tenant), tenant };
   }

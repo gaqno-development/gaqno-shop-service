@@ -60,6 +60,32 @@ export class SsoTenantClient {
     }
   }
 
+  async getBySlug(slug: string): Promise<SsoPublicOrgProjection | null> {
+    const baseUrl = this.configService.get<string>("SSO_SERVICE_URL");
+    const secret = this.configService.get<string>("INTERNAL_SYNC_SECRET");
+    if (!baseUrl || !slug) return null;
+    const url = `${baseUrl.replace(/\/+$/, "")}/v1/internal/orgs/by-slug/${encodeURIComponent(slug)}`;
+    try {
+      const response = await this.httpClient.get<SsoPublicOrgProjection>(url, {
+        headers: { "x-internal-secret": secret ?? "" },
+        timeout: 3000,
+      });
+      return response.data;
+    } catch (error) {
+      const axiosError = error as {
+        response?: { status?: number };
+        message?: string;
+      };
+      if (axiosError.response?.status === 404) {
+        return null;
+      }
+      this.logger.warn(
+        `Failed to fetch tenant slug ${slug} from SSO: ${axiosError.message ?? "unknown"}`,
+      );
+      return null;
+    }
+  }
+
   async getTenantIdByDomain(domain: string): Promise<string | null> {
     const baseUrl = this.configService.get<string>("SSO_SERVICE_URL");
     if (!baseUrl || !domain) return null;

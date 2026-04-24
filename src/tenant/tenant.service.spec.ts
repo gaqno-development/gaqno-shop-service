@@ -66,6 +66,8 @@ describe("TenantService.listActiveWithSummary", () => {
 
     expect(result).toHaveLength(2);
     expect(result.map((r) => r.id).sort()).toEqual(["t1", "t2"]);
+    expect(result.map((r) => r.ssoTenantId).sort()).toEqual(["t1", "t2"]);
+    expect(result.map((r) => r.localTenantId).sort()).toEqual(["t1", "t2"]);
   });
 
   it("merges order and customer aggregates by tenantId", async () => {

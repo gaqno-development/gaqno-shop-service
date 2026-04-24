@@ -25,6 +25,8 @@ import {
 
 export interface ITenantSummaryRow {
   readonly id: string;
+  readonly localTenantId: string;
+  readonly ssoTenantId: string;
   readonly name: string;
   readonly slug: string | null;
   readonly logoUrl: string | null;
@@ -38,6 +40,60 @@ const PAID_PAYMENT_STATUSES = ["approved", "authorized"] as const;
 
 @Injectable()
 export class TenantService {
+  private readMappedSsoTenantId(settings: unknown): string | null {
+    if (!settings || typeof settings !== "object") return null;
+    const value = (settings as { ssoTenantId?: unknown }).ssoTenantId;
+    return typeof value === "string" && value.length > 0 ? value : null;
+  }
+
+  private async persistSsoTenantId(
+    localTenantId: string,
+    settings: unknown,
+    ssoTenantId: string,
+  ): Promise<void> {
+    const current =
+      settings && typeof settings === "object" ? (settings as Record<string, unknown>) : {};
+    await this.db
+      .update(tenants)
+      .set({
+        settings: {
+          ...current,
+          ssoTenantId,
+        },
+        updatedAt: new Date(),
+      })
+      .where(eq(tenants.id, localTenantId));
+  }
+
+  private async resolveCanonicalSsoTenantId(tenant: {
+    readonly id: string;
+    readonly slug: string | null;
+    readonly settings: unknown;
+  }): Promise<string> {
+    const fromSettings = this.readMappedSsoTenantId(tenant.settings);
+    if (fromSettings) {
+      return fromSettings;
+    }
+    if (!this.ssoClient) {
+      return tenant.id;
+    }
+    const byId = await this.ssoClient.getById(tenant.id);
+    if (byId?.id) {
+      return byId.id;
+    }
+    if (!tenant.slug) {
+      return tenant.id;
+    }
+    const bySlug = await this.ssoClient.getBySlug(tenant.slug);
+    if (!bySlug?.id) {
+      return tenant.id;
+    }
+    if (bySlug.id !== tenant.id) {
+      await this.persistSsoTenantId(tenant.id, tenant.settings, bySlug.id);
+    }
+    return bySlug.id;
+  }
+
   private readonly logger = new Logger(TenantService.name);
 
   constructor(
@@ -132,11 +188,22 @@ export class TenantService {
     return this.db.query.tenants.findFirst({ where: eq(tenants.id, id) });
   }
 
-  listActive() {
-    return this.db.query.tenants.findMany({
+  async listActive() {
+    const rows = await this.db.query.tenants.findMany({
       where: eq(tenants.isActive, true),
       orderBy: [asc(tenants.name)],
     });
+    return Promise.all(
+      rows.map(async (tenant) => {
+        const ssoTenantId = await this.resolveCanonicalSsoTenantId(tenant);
+        return {
+          ...tenant,
+          id: ssoTenantId,
+          localTenantId: tenant.id,
+          ssoTenantId,
+        };
+      }),
+    );
   }
 
   async listActiveWithSummary(): Promise<ITenantSummaryRow[]> {
@@ -200,10 +267,19 @@ export class TenantService {
       ]),
     );
 
-    return activeTenants.map((tenant) => {
+    const withCanonicalId = await Promise.all(
+      activeTenants.map(async (tenant) => ({
+        tenant,
+        ssoTenantId: await this.resolveCanonicalSsoTenantId(tenant),
+      })),
+    );
+
+    return withCanonicalId.map(({ tenant, ssoTenantId }) => {
       const agg = orderMap.get(tenant.id);
       return {
-        id: tenant.id,
+        id: ssoTenantId,
+        localTenantId: tenant.id,
+        ssoTenantId,
         name: tenant.name,
         slug: tenant.slug ?? null,
         logoUrl: tenant.logoUrl ?? null,
