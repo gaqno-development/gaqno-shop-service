@@ -63,6 +63,13 @@ export class TenantContextMiddleware implements NestMiddleware {
     if (ssoTenantId) {
       const syncedFromDomain = await this.lazySyncFromSso(ssoTenantId);
       if (syncedFromDomain) return syncedFromDomain;
+      const ssoProjection = await this.ssoClient.getById(ssoTenantId);
+      if (ssoProjection?.slug) {
+        const byTrustedSsoSlug = await this.tenantService.getBySlug(
+          ssoProjection.slug,
+        );
+        if (byTrustedSsoSlug) return byTrustedSsoSlug;
+      }
     }
     return null;
   }

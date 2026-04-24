@@ -217,6 +217,43 @@ describe("TenantContextMiddleware", () => {
     expect(next).toHaveBeenCalled();
   });
 
+  it("uses trusted SSO slug fallback when upsert is refused", async () => {
+    tenantService.resolve.mockResolvedValue(undefined as any);
+    tenantService.getBySlug
+      .mockResolvedValueOnce(undefined as any)
+      .mockResolvedValueOnce(tenant as any);
+    ssoClient.getTenantIdByDomain.mockResolvedValue("sso-id-1");
+    ssoClient.getById
+      .mockResolvedValueOnce({
+        id: "sso-id-1",
+        slug: "fifiadoces",
+        name: "Fifia Doces",
+        vertical: "bakery",
+      })
+      .mockResolvedValueOnce({
+        id: "sso-id-1",
+        slug: "fifiadoces",
+        name: "Fifia Doces",
+        vertical: "bakery",
+      });
+    tenantService.upsertFromSso.mockResolvedValue(null as any);
+    const next = jest.fn().mockImplementation(() => {
+      expect(tenantContextStorage.getStore()?.tenantId).toBe("sso-id-1");
+    });
+
+    await middleware.use(
+      makeReq({ "x-tenant-domain": "fifiadoces.gaqno.com.br" }) as any,
+      {} as any,
+      next,
+    );
+
+    expect(ssoClient.getTenantIdByDomain).toHaveBeenCalledWith(
+      "fifiadoces.gaqno.com.br",
+    );
+    expect(tenantService.getBySlug).toHaveBeenCalledWith("fifiadoces");
+    expect(next).toHaveBeenCalled();
+  });
+
   it("gracefully continues when SSO client throws", async () => {
     jwtService.verify.mockReturnValue({ tenantId: "sso-id-1" } as any);
     tenantService.getBySlug.mockResolvedValue(undefined as any);
