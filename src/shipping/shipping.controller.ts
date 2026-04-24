@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -88,10 +89,24 @@ export class ShippingController {
     @CurrentTenant("tenantId") tenantId: string | undefined,
     @Body() dto: CalculateShippingDto,
   ) {
-    const items = [{ productId: dto.productId, quantity: dto.quantity ?? 1 }];
+    const cep = String(dto.cepDestino ?? dto.zipCode ?? "").replace(/\D/g, "");
+    if (cep.length < 8) {
+      throw new BadRequestException("Invalid CEP");
+    }
+    let items: { productId: string; quantity: number }[];
+    if (dto.items && dto.items.length > 0) {
+      items = dto.items.map((i) => ({
+        productId: i.productId,
+        quantity: i.quantity,
+      }));
+    } else if (dto.productId) {
+      items = [{ productId: dto.productId, quantity: dto.quantity ?? 1 }];
+    } else {
+      throw new BadRequestException("productId or items is required");
+    }
     const data = await this.shippingCalculator.calculateShipping(
       requireTenantId(tenantId),
-      dto.cepDestino,
+      cep,
       items,
       dto.subtotal ?? 0,
     );

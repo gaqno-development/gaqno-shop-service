@@ -31,6 +31,6 @@ import { BakeryOrderLifecycleModule } from "../bakery/order-lifecycle/bakery-ord
     OrderStatusService,
   ],
   controllers: [OrderController],
-  exports: [OrderService],
+  exports: [OrderService, OrderCreateService],
 })
 export class OrderModule {}

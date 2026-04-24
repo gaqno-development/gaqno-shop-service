@@ -1,9 +1,14 @@
 import {
+  IsArray,
   IsBoolean,
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
+  Min,
+  ValidateNested,
 } from "class-validator";
+import { Type } from "class-transformer";
 
 export class CreateShippingMethodDto {
   @IsString()
@@ -79,12 +84,27 @@ export class UpdateShippingMethodDto {
   isActive?: boolean;
 }
 
-export class CalculateShippingDto {
-  @IsString()
-  cepDestino!: string;
-
-  @IsString()
+export class ShippingLineItemDto {
+  @IsUUID()
   productId!: string;
+
+  @IsNumber()
+  @Min(1)
+  quantity!: number;
+}
+
+export class CalculateShippingDto {
+  @IsOptional()
+  @IsString()
+  cepDestino?: string;
+
+  @IsOptional()
+  @IsString()
+  zipCode?: string;
+
+  @IsOptional()
+  @IsString()
+  productId?: string;
 
   @IsOptional()
   @IsNumber()
@@ -93,4 +113,10 @@ export class CalculateShippingDto {
   @IsOptional()
   @IsNumber()
   subtotal?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ShippingLineItemDto)
+  items?: ShippingLineItemDto[];
 }

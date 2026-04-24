@@ -39,6 +39,8 @@ function buildMetadata(dto: CreateOrderDto): Record<string, unknown> {
   if (typeof dto.deliveryIsPickup === "boolean") {
     meta.deliveryIsPickup = dto.deliveryIsPickup;
   }
+  if (dto.couponCode) meta.couponCode = dto.couponCode;
+  if (dto.shippingMethodId) meta.shippingMethodId = dto.shippingMethodId;
   return meta;
 }
 
@@ -52,6 +54,16 @@ export class OrderCreateService {
   ) {}
 
   async create(tenantId: string, tenantSlug: string, dto: CreateOrderDto) {
+    const totals = calculateTotals(dto.items);
+    return this.createWithTotals(tenantId, tenantSlug, dto, totals);
+  }
+
+  async createWithTotals(
+    tenantId: string,
+    tenantSlug: string,
+    dto: CreateOrderDto,
+    totals: OrderTotals,
+  ) {
     if (dto.deliveryDate) {
       await this.lifecycle.validateLeadDaysForOrder({
         tenantId,
@@ -64,7 +76,6 @@ export class OrderCreateService {
     }
 
     const orderNumber = await generateOrderNumber(this.db, tenantId, tenantSlug);
-    const totals = calculateTotals(dto.items);
     const metadata = buildMetadata(dto);
 
     const [order] = await this.db

@@ -29,6 +29,7 @@ import { SiteSettingsModule } from "./bakery/site-settings/site-settings.module"
 import { BakeryAssetsModule } from "./bakery/assets/bakery-assets.module";
 import { CouponsModule } from "./coupons/coupons.module";
 import { PaymentGatewaysModule } from "./payment-gateways/payment-gateways.module";
+import { CheckoutModule } from "./checkout/checkout.module";
 import { TenantContextMiddleware } from "./common/middleware/tenant-context.middleware";
 import { FeatureFlagGuard } from "./common/guards/feature-flag.guard";
 
@@ -57,6 +58,7 @@ import { FeatureFlagGuard } from "./common/guards/feature-flag.guard";
     CustomerModule,
     CartModule,
     PaymentModule,
+    CheckoutModule,
     ShippingModule,
     LoyaltyModule,
     WishlistModule,

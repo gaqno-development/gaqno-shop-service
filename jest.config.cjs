@@ -2,7 +2,11 @@
 module.exports = {
   testEnvironment: "node",
   rootDir: ".",
-  testMatch: ["<rootDir>/test/**/*.e2e-spec.ts"],
+  testMatch: [
+    "<rootDir>/test/**/*.e2e-spec.ts",
+    "<rootDir>/src/payment/**/*.spec.ts",
+    "<rootDir>/src/payment-gateways/**/*.spec.ts",
+  ],
   moduleFileExtensions: ["ts", "js", "json"],
   transform: {
     "^.+\\.ts$": [

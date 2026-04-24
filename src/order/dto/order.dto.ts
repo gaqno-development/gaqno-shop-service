@@ -76,7 +76,7 @@ class OrderItemDto {
   decorations?: OrderItemDecorationInputDto[];
 }
 
-class AddressDto {
+export class AddressDto {
   @IsString()
   name: string;
 
@@ -143,6 +143,14 @@ export class CreateOrderDto {
   @IsOptional()
   @IsBoolean()
   deliveryIsPickup?: boolean;
+
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
+
+  @IsOptional()
+  @IsUUID()
+  shippingMethodId?: string;
 }
 
 export class UpdateOrderStatusDto {

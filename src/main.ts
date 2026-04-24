@@ -27,7 +27,7 @@ async function bootstrap(): Promise<void> {
     console.warn("⚠️  DATABASE_URL not set, skipping migrations");
   }
   
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   const config = app.get(ConfigService);
 
   app.use(stripPrefix);
@@ -53,6 +53,8 @@ async function bootstrap(): Promise<void> {
         "tracestate",
         "x-tenant-id",
         "x-user-id",
+        "x-signature",
+        "x-request-id",
       ],
     }),
   );

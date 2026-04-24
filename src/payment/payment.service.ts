@@ -7,52 +7,150 @@ import {
   ConflictException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { orders } from "../database/schema";
-import { eq, and } from "drizzle-orm";
+import { orders, tenantPaymentGateways, tenants } from "../database/schema";
+import { and, eq } from "drizzle-orm";
 import { CreatePaymentDto, PaymentMethod } from "./dto/payment.dto";
 import { PaymentGatewaysService } from "../payment-gateways/payment-gateways.service";
-
-// Mercado Pago SDK mock - will be replaced with actual SDK
-interface MercadoPagoPreference {
-  id: string;
-  init_point: string;
-  sandbox_init_point: string;
-}
-
-interface MercadoPagoPayment {
-  id: number;
-  status: string;
-  status_detail: string;
-  transaction_amount: number;
-  external_reference: string;
-  point_of_interaction?: {
-    transaction_data?: {
-      qr_code?: string;
-      qr_code_base64?: string;
-    };
-  };
-}
+import { PaymentGatewayFactory } from "../payment-gateways/payment-gateway.factory";
+import type {
+  GatewayCredentials,
+  CheckoutItem,
+  NormalizedPaymentStatus,
+  PaymentStatusInfo,
+} from "../payment-gateways/payment-gateway.interface";
 
 const PAID_WEBHOOK_STATUSES = new Set(["approved", "authorized"]);
-const IN_FLIGHT_PAYMENT_STATUSES = new Set(["pending", "in_process", "authorized", "approved"]);
+const IN_FLIGHT_PAYMENT_STATUSES = new Set([
+  "pending",
+  "in_process",
+  "authorized",
+  "approved",
+]);
+
+type WebhookBody = {
+  action?: string;
+  data?: { id?: string | number };
+  type?: string;
+  topic?: string;
+  resource?: string;
+};
+
+function parseWebhookBody(rawBody: string): WebhookBody {
+  try {
+    return JSON.parse(rawBody) as WebhookBody;
+  } catch {
+    return {};
+  }
+}
+
+function normalizeHeaders(
+  headers: Record<string, string | string[] | undefined>,
+): Record<string, string | undefined> {
+  const out: Record<string, string | undefined> = {};
+  for (const [k, v] of Object.entries(headers)) {
+    const key = k.toLowerCase();
+    if (Array.isArray(v)) {
+      out[key] = v[0];
+    } else {
+      out[key] = v;
+    }
+  }
+  return out;
+}
+
+function isMerchantOrderTopic(body: WebhookBody, requestUrl: string): boolean {
+  if (body.topic === "merchant_order") return true;
+  if (body.action?.includes("merchant_order")) return true;
+  try {
+    const u = new URL(requestUrl, "http://localhost");
+    return u.searchParams.get("topic") === "merchant_order";
+  } catch {
+    return false;
+  }
+}
+
+function extractPaymentIdFromResource(
+  body: WebhookBody,
+  requestUrl: string,
+): string | null {
+  try {
+    const u = new URL(requestUrl, "http://localhost");
+    const topic = body.topic ?? u.searchParams.get("topic");
+    if (topic !== "payment") return null;
+    if (body.data?.id !== undefined && body.data?.id !== null) {
+      return String(body.data.id);
+    }
+    const resource = body.resource ?? u.searchParams.get("resource") ?? "";
+    const match = resource.match(/\/payments\/(\d+)/);
+    return match?.[1] ?? u.searchParams.get("id");
+  } catch {
+    return null;
+  }
+}
+
+function extractPaymentId(
+  body: WebhookBody,
+  requestUrl: string,
+): string | null {
+  if (body.data?.id !== undefined && body.data?.id !== null) {
+    return String(body.data.id);
+  }
+  return extractPaymentIdFromResource(body, requestUrl);
+}
+
+function orderTotalCents(total: string | number): number {
+  return Math.round(Number.parseFloat(String(total)) * 100);
+}
+
+function readPublicShopUrl(settings: unknown): string | null {
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
+    return null;
+  }
+  const v = (settings as { publicShopUrl?: unknown }).publicShopUrl;
+  return typeof v === "string" && v.trim().length > 0 ? v.trim() : null;
+}
+
+function mapNormalizedToDbStatus(
+  s: NormalizedPaymentStatus,
+):
+  | "pending"
+  | "approved"
+  | "authorized"
+  | "in_process"
+  | "in_mediation"
+  | "rejected"
+  | "cancelled"
+  | "refunded"
+  | "charged_back" {
+  const allowed: ReadonlySet<string> = new Set([
+    "pending",
+    "approved",
+    "authorized",
+    "in_process",
+    "in_mediation",
+    "rejected",
+    "cancelled",
+    "refunded",
+    "charged_back",
+  ]);
+  return allowed.has(s) ? (s as never) : "pending";
+}
 
 @Injectable()
 export class PaymentService {
   constructor(
-    @Inject("DATABASE") private db: any,
-    private configService: ConfigService,
-    private paymentGatewaysService: PaymentGatewaysService
+    @Inject("DATABASE") private readonly db: any,
+    private readonly configService: ConfigService,
+    private readonly paymentGatewaysService: PaymentGatewaysService,
+    private readonly paymentGatewayFactory: PaymentGatewayFactory,
   ) {}
 
   async createPayment(tenantId: string, dto: CreatePaymentDto) {
-    // Get order
     const order = await this.db.query.orders.findFirst({
-      where: and(
-        eq(orders.tenantId, tenantId),
-        eq(orders.orderNumber, dto.orderNumber)
-      ),
+      where: and(eq(orders.tenantId, tenantId), eq(orders.orderNumber, dto.orderNumber)),
       with: {
         items: true,
+        customer: true,
       },
     });
 
@@ -60,7 +158,10 @@ export class PaymentService {
       throw new NotFoundException("Order not found");
     }
 
-    if (order.paymentExternalId && IN_FLIGHT_PAYMENT_STATUSES.has(String(order.paymentStatus))) {
+    if (
+      order.paymentExternalId &&
+      IN_FLIGHT_PAYMENT_STATUSES.has(String(order.paymentStatus))
+    ) {
       return {
         orderNumber: order.orderNumber,
         paymentExternalId: order.paymentExternalId,
@@ -84,215 +185,378 @@ export class PaymentService {
       throw new BadRequestException("Payment not configured for this tenant");
     }
 
-    // Build preference items
-    const items = order.items.map((item: any) => ({
-      title: item.name,
-      unit_price: parseFloat(item.price),
-      quantity: item.quantity,
-    }));
+    const credentials = gateway.credentials as GatewayCredentials;
+    const mp = this.paymentGatewayFactory.get("mercado_pago");
 
-    // Create preference based on payment method
     if (dto.paymentMethod === PaymentMethod.PIX) {
-      return this.createPixPayment(order, items, accessToken, dto, gateway?.id);
+      return this.createPixPaymentReal(order, dto, credentials, gateway?.id, mp);
     }
 
-    // For credit/debit cards and other methods
-    return this.createStandardPayment(order, items, accessToken, dto, gateway?.id);
+    return this.createCheckoutProPayment(
+      tenantId,
+      order,
+      dto,
+      credentials,
+      gateway?.id,
+      mp,
+    );
   }
 
-  private async createPixPayment(
+  private resolvePayerEmail(order: any, dto: CreatePaymentDto): string {
+    const fromDto = dto.payerEmail?.trim();
+    if (fromDto) return fromDto;
+    const fromCustomer = order.customer?.email?.trim();
+    if (fromCustomer) return fromCustomer;
+    throw new BadRequestException("payerEmail is required for Mercado Pago");
+  }
+
+  private async resolvePaymentPublicUrlsAsync(
+    tenantId: string,
+    orderNumber: string,
+  ): Promise<{ returnUrl: string; notificationUrl: string }> {
+    const publicBase = this.configService
+      .get<string>("SHOP_SERVICE_PUBLIC_BASE_URL")
+      ?.replace(/\/+$/, "");
+    if (!publicBase) {
+      return { returnUrl: "http://localhost", notificationUrl: "http://localhost" };
+    }
+    const notificationUrl = `${publicBase}/v1/payments/webhook`;
+    const tenantRow = await this.db.query.tenants.findFirst({
+      where: eq(tenants.id, tenantId),
+    });
+    const shopUrl = readPublicShopUrl(tenantRow?.settings);
+    const slug = tenantRow?.slug?.trim() ?? "";
+    const storefrontEnv = this.configService
+      .get<string>("SHOP_STOREFRONT_PUBLIC_URL")
+      ?.replace(/\/+$/, "");
+    const storefrontBase =
+      shopUrl && shopUrl.startsWith("https://")
+        ? shopUrl.replace(/\/+$/, "")
+        : storefrontEnv && /^https?:\/\//i.test(storefrontEnv)
+          ? storefrontEnv
+          : "";
+    const tenantQs = slug ? `&tenant=${encodeURIComponent(slug)}` : "";
+    const returnPath = `/pagamento/retorno?order=${encodeURIComponent(orderNumber)}${tenantQs}`;
+    const returnUrl = storefrontBase
+      ? `${storefrontBase.replace(/\/+$/, "")}${returnPath}`
+      : `${publicBase}/v1/payments/return?order=${encodeURIComponent(orderNumber)}${tenantQs}`;
+    return { returnUrl, notificationUrl };
+  }
+
+  private async createPixPaymentReal(
     order: any,
-    items: any[],
-    accessToken: string,
     dto: CreatePaymentDto,
-    paymentGatewayId?: string,
+    credentials: GatewayCredentials,
+    paymentGatewayId: string | undefined,
+    mp: ReturnType<PaymentGatewayFactory["get"]>,
   ) {
-    // TODO: Integrate with Mercado Pago SDK for PIX
-    // This is a mock implementation
+    const payerEmail = this.resolvePayerEmail(order, dto);
+    const amountCents = orderTotalCents(order.total);
+    const pixMinutes = Number(
+      this.configService.get<string>("MERCADO_PAGO_PIX_EXPIRY_MINUTES") ?? "30",
+    );
+    const result = await mp.createPixPayment({
+      tenantId: order.tenantId,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      amountCents,
+      payerEmail,
+      description: `Pedido ${order.orderNumber}`,
+      expiresInMinutes: Number.isFinite(pixMinutes) && pixMinutes > 0 ? pixMinutes : 30,
+      credentials,
+    });
 
-    const mockPayment: MercadoPagoPayment = {
-      id: Date.now(),
-      status: "pending",
-      status_detail: "pending_waiting_payment",
-      transaction_amount: parseFloat(order.total),
-      external_reference: order.orderNumber,
-      point_of_interaction: {
-        transaction_data: {
-          qr_code: "00020126580014BR.GOV.BCB.PIX0136mock-qr-code-for-testing",
-          qr_code_base64:
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-        },
-      },
-    };
-
-    // Update order with payment info
     await this.db
       .update(orders)
       .set({
         paymentMethod: "pix",
         paymentProvider: "mercado_pago",
         paymentGatewayId,
-        paymentExternalId: mockPayment.id.toString(),
-        pixQrCode: mockPayment.point_of_interaction?.transaction_data?.qr_code,
-        pixQrCodeBase64:
-          mockPayment.point_of_interaction?.transaction_data?.qr_code_base64,
+        paymentExternalId: result.paymentId,
+        pixQrCode: result.qrCode,
+        pixQrCodeBase64: result.qrCodeBase64,
+        pixExpiresAt: result.expiresAt,
       })
       .where(eq(orders.id, order.id));
 
     return {
-      paymentId: mockPayment.id,
-      status: mockPayment.status,
-      qrCode: mockPayment.point_of_interaction?.transaction_data?.qr_code,
-      qrCodeBase64:
-        mockPayment.point_of_interaction?.transaction_data?.qr_code_base64,
-      expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+      paymentId: result.paymentId,
+      status: result.status,
+      qrCode: result.qrCode,
+      qrCodeBase64: result.qrCodeBase64,
+      expiresAt: result.expiresAt,
     };
   }
 
-  private async createStandardPayment(
+  private async createCheckoutProPayment(
+    tenantId: string,
     order: any,
-    items: any[],
-    accessToken: string,
     dto: CreatePaymentDto,
-    paymentGatewayId?: string,
+    credentials: GatewayCredentials,
+    paymentGatewayId: string | undefined,
+    mp: ReturnType<PaymentGatewayFactory["get"]>,
   ) {
-    // TODO: Integrate with Mercado Pago SDK for credit/debit cards
-    // This is a mock implementation
+    const payerEmail = this.resolvePayerEmail(order, dto);
+    const { returnUrl, notificationUrl } = await this.resolvePaymentPublicUrlsAsync(
+      tenantId,
+      order.orderNumber,
+    );
+    const items: CheckoutItem[] = (order.items ?? []).map((item: any) => ({
+      title: item.name,
+      description: item.name,
+      quantity: item.quantity,
+      unitPriceCents: Math.round(Number.parseFloat(String(item.price)) * 100),
+    }));
+    const result = await mp.createCheckout({
+      tenantId,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      amountCents: orderTotalCents(order.total),
+      currency: String(order.currency ?? "BRL").toUpperCase(),
+      payerEmail,
+      description: `Pedido ${order.orderNumber}`,
+      returnUrl,
+      notificationUrl,
+      items: items.length > 0 ? items : undefined,
+      installments: dto.installments ?? 12,
+      credentials,
+      metadata: { orderId: order.id },
+    });
 
-    const mockPreference: MercadoPagoPreference = {
-      id: `pref_${Date.now()}`,
-      init_point: `https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=pref_${Date.now()}`,
-      sandbox_init_point: `https://sandbox.mercadopago.com.br/checkout/v1/redirect?pref_id=pref_${Date.now()}`,
-    };
-
-    // Update order with payment info
     await this.db
       .update(orders)
       .set({
         paymentMethod: dto.paymentMethod,
         paymentProvider: "mercado_pago",
         paymentGatewayId,
-        paymentExternalId: mockPreference.id,
-        paymentExternalUrl: mockPreference.init_point,
+        paymentExternalId: result.paymentId,
+        paymentExternalUrl: result.checkoutUrl,
       })
       .where(eq(orders.id, order.id));
 
     return {
-      preferenceId: mockPreference.id,
-      initPoint: mockPreference.init_point,
-      sandboxInitPoint: mockPreference.sandbox_init_point,
+      preferenceId: result.paymentId,
+      initPoint: result.checkoutUrl,
+      sandboxInitPoint: result.checkoutUrl,
     };
   }
 
-  async handleWebhook(
-    tenantId: string | undefined,
-    signature: string | undefined,
-    data: any
-  ) {
-    const { type } = data;
-
-    if (type !== "payment") {
+  async handleMercadoPagoWebhook(input: {
+    rawBody: string;
+    headers: Record<string, string | string[] | undefined>;
+    requestUrl: string;
+    tenantId?: string;
+  }) {
+    const body = parseWebhookBody(input.rawBody);
+    if (isMerchantOrderTopic(body, input.requestUrl)) {
       return { received: true };
     }
-    const paymentExternalId =
-      data?.dataId ?? data?.id ?? data?.data?.id;
-    if (!paymentExternalId) {
-      throw new BadRequestException("payment id is required");
+
+    const headers = normalizeHeaders(input.headers);
+    const paymentId = extractPaymentId(body, input.requestUrl);
+    if (!paymentId) {
+      return { received: true };
     }
 
-    const existing = tenantId
+    const mp = this.paymentGatewayFactory.get("mercado_pago");
+    const verified = await this.resolveVerifiedGatewayForWebhook(
+      input.rawBody,
+      headers,
+      mp,
+    );
+    if (!verified) {
+      throw new UnauthorizedException("Invalid webhook signature");
+    }
+
+    let paymentInfo: PaymentStatusInfo;
+    try {
+      paymentInfo = await mp.getPaymentStatus(paymentId, verified.credentials);
+    } catch {
+      throw new BadRequestException("Unable to load payment from Mercado Pago");
+    }
+
+    const tenantScope =
+      input.tenantId ?? (verified.tenantId ? verified.tenantId : undefined);
+    let existing = tenantScope
       ? await this.db.query.orders.findFirst({
           where: and(
-            eq(orders.tenantId, tenantId),
-            eq(orders.paymentExternalId, String(paymentExternalId)),
+            eq(orders.tenantId, tenantScope),
+            eq(orders.paymentExternalId, String(paymentId)),
           ),
         })
       : await this.db.query.orders.findFirst({
-          where: eq(orders.paymentExternalId, String(paymentExternalId)),
+          where: eq(orders.paymentExternalId, String(paymentId)),
         });
+
+    if (!existing && paymentInfo.externalReference) {
+      const ref = paymentInfo.externalReference;
+      const byNumberWhere = tenantScope
+        ? and(eq(orders.tenantId, tenantScope), eq(orders.orderNumber, ref))
+        : eq(orders.orderNumber, ref);
+      const candidates = await this.db.select().from(orders).where(byNumberWhere);
+      if (candidates.length === 1) {
+        existing = candidates[0];
+      } else if (candidates.length > 1 && paymentInfo.amountCents != null) {
+        existing =
+          candidates.find(
+            (o) => orderTotalCents(o.total) === paymentInfo.amountCents,
+          ) ?? null;
+      }
+    }
+
     if (!existing) {
       return { received: true, ignored: true };
     }
 
-    const gatewayId = existing.paymentGatewayId as string | undefined;
-    await this.assertWebhookSignatureForTenant(signature, existing.tenantId, gatewayId);
-
-    const status =
-      String(data?.status ?? data?.data?.status ?? "")
-        .trim()
-        .toLowerCase();
-    if (!PAID_WEBHOOK_STATUSES.has(status)) {
-      return { received: true, ignored: true, status };
+    if (tenantScope && existing.tenantId !== tenantScope) {
+      return { received: true, ignored: true };
     }
 
-    const externalReference = String(
-      data?.externalReference ??
-        data?.external_reference ??
-        data?.data?.externalReference ??
-        data?.data?.external_reference ??
-        "",
-    ).trim();
-    if (externalReference && externalReference !== existing.orderNumber) {
+    const extRef = (paymentInfo.externalReference ?? "").trim();
+    if (extRef && extRef !== existing.orderNumber) {
       return { received: true, ignored: true, reason: "external_reference_mismatch" };
     }
 
-    const webhookAmount = Number(
-      data?.transactionAmount ??
-        data?.transaction_amount ??
-        data?.data?.transactionAmount ??
-        data?.data?.transaction_amount,
-    );
-    if (Number.isFinite(webhookAmount)) {
-      const orderTotal = Number(existing.total);
-      if (Number.isFinite(orderTotal) && Number(webhookAmount.toFixed(2)) !== Number(orderTotal.toFixed(2))) {
+    if (
+      paymentInfo.amountCents !== null &&
+      Number.isFinite(paymentInfo.amountCents)
+    ) {
+      const expected = orderTotalCents(existing.total);
+      if (paymentInfo.amountCents !== expected) {
         return { received: true, ignored: true, reason: "amount_mismatch" };
       }
     }
 
-    const webhookCurrency = String(
-      data?.currency ?? data?.data?.currency ?? "",
-    ).trim().toUpperCase();
-    const orderCurrency = String(existing.currency ?? "BRL").trim().toUpperCase();
-    if (webhookCurrency && webhookCurrency !== orderCurrency) {
-      return { received: true, ignored: true, reason: "currency_mismatch" };
+    const status = paymentInfo.status;
+    if (PAID_WEBHOOK_STATUSES.has(status)) {
+      if (existing.paymentStatus === "approved" || existing.paymentStatus === "authorized") {
+        return { received: true, ignored: true, idempotent: true };
+      }
+      await this.db
+        .update(orders)
+        .set({
+          paymentStatus: status === "authorized" ? "authorized" : "approved",
+          paymentExternalId: String(paymentId),
+          webhookLastReceivedAt: new Date(),
+          paidAt: existing.paidAt ?? new Date(),
+        })
+        .where(eq(orders.id, existing.id));
+      return { received: true, updated: true };
     }
 
-    if (existing.paymentStatus === "approved" || existing.paymentStatus === "authorized") {
-      return { received: true, ignored: true, idempotent: true };
+    if (
+      status === "refunded" ||
+      status === "charged_back" ||
+      status === "cancelled"
+    ) {
+      await this.db
+        .update(orders)
+        .set({
+          paymentStatus: mapNormalizedToDbStatus(status),
+          paymentExternalId: String(paymentId),
+          webhookLastReceivedAt: new Date(),
+        })
+        .where(eq(orders.id, existing.id));
+      return { received: true, updated: true, status };
     }
 
-    await this.db
-      .update(orders)
-      .set({
-        paymentStatus: status === "authorized" ? "authorized" : "approved",
-        webhookLastReceivedAt: new Date(),
-        paidAt: existing.paidAt ?? new Date(),
-      })
-      .where(eq(orders.id, existing.id));
+    if (status === "rejected") {
+      await this.db
+        .update(orders)
+        .set({
+          paymentStatus: "rejected",
+          paymentExternalId: String(paymentId),
+          webhookLastReceivedAt: new Date(),
+        })
+        .where(eq(orders.id, existing.id));
+      return { received: true, updated: true, status };
+    }
 
-    return { received: true, updated: true };
+    return { received: true, ignored: true, status };
   }
 
-  private async assertWebhookSignatureForTenant(
-    signature: string | undefined,
-    tenantId: string,
-    gatewayId?: string,
-  ) {
-    const gateway = gatewayId
-      ? await this.paymentGatewaysService.getGatewayById(gatewayId)
-      : await this.paymentGatewaysService.getPreferredGatewayForTenant(
-          tenantId,
-          "mercado_pago",
-        );
-    const configured =
-      (gateway?.credentials?.webhook_secret as string | undefined) ??
-      this.configService.get<string>("MERCADO_PAGO_WEBHOOK_SECRET");
-    if (!configured) {
-      throw new UnauthorizedException("Webhook secret is not configured");
+  private async resolveVerifiedGatewayForWebhook(
+    rawBody: string,
+    headers: Record<string, string | undefined>,
+    mp: ReturnType<PaymentGatewayFactory["get"]>,
+  ): Promise<{ credentials: GatewayCredentials; tenantId: string } | null> {
+    const globalSecret = this.configService.get<string>("MERCADO_PAGO_WEBHOOK_SECRET");
+    if (globalSecret) {
+      const credsWebhook: GatewayCredentials = { webhook_secret: globalSecret };
+      if (
+        mp.verifyWebhookSignature({
+          rawBody,
+          headers,
+          credentials: credsWebhook,
+        })
+      ) {
+        const envToken = this.configService.get<string>("MERCADO_PAGO_ACCESS_TOKEN");
+        if (envToken) {
+          return {
+            credentials: { ...credsWebhook, access_token: envToken },
+            tenantId: "",
+          };
+        }
+        const rows = await this.db
+          .select()
+          .from(tenantPaymentGateways)
+          .where(
+            and(
+              eq(tenantPaymentGateways.provider, "mercado_pago"),
+              eq(tenantPaymentGateways.isActive, true),
+            ),
+          );
+        const first = rows[0];
+        if (first) {
+          const merged = {
+            ...(first.credentials as GatewayCredentials),
+            webhook_secret: globalSecret,
+          };
+          return { credentials: merged, tenantId: first.tenantId };
+        }
+        return null;
+      }
     }
-    if (signature !== configured) {
-      throw new UnauthorizedException("Invalid webhook signature");
+
+    const rows = await this.db
+      .select()
+      .from(tenantPaymentGateways)
+      .where(
+        and(
+          eq(tenantPaymentGateways.provider, "mercado_pago"),
+          eq(tenantPaymentGateways.isActive, true),
+        ),
+      );
+    for (const row of rows) {
+      const creds = row.credentials as GatewayCredentials;
+      if (!creds?.webhook_secret) continue;
+      if (mp.verifyWebhookSignature({ rawBody, headers, credentials: creds })) {
+        return { credentials: creds, tenantId: row.tenantId };
+      }
     }
+
+    const legacy = headers["x-webhook-signature"];
+    if (legacy && globalSecret && legacy === globalSecret) {
+      const envToken = this.configService.get<string>("MERCADO_PAGO_ACCESS_TOKEN");
+      const first = rows[0];
+      if (envToken) {
+        return {
+          credentials: {
+            webhook_secret: globalSecret,
+            access_token: envToken,
+          },
+          tenantId: "",
+        };
+      }
+      if (first) {
+        return {
+          credentials: first.credentials as GatewayCredentials,
+          tenantId: first.tenantId,
+        };
+      }
+    }
+
+    return null;
   }
 
   assertWebhookSignature(signature: string | undefined) {
@@ -307,10 +571,7 @@ export class PaymentService {
 
   async getPaymentStatus(tenantId: string, orderNumber: string) {
     const order = await this.db.query.orders.findFirst({
-      where: and(
-        eq(orders.tenantId, tenantId),
-        eq(orders.orderNumber, orderNumber)
-      ),
+      where: and(eq(orders.tenantId, tenantId), eq(orders.orderNumber, orderNumber)),
     });
 
     if (!order) {
