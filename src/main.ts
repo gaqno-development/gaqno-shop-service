@@ -40,6 +40,7 @@ async function bootstrap(): Promise<void> {
         "X-Requested-With",
         "X-Tenant-Domain",
         "X-Tenant-Slug",
+        "X-Session-Id",
         "Referer",
         "User-Agent",
         "sec-ch-ua",
