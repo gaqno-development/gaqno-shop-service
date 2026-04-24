@@ -12,10 +12,12 @@ import {
 } from "@nestjs/common";
 import { getCurrentTenant } from "../common/tenant-context";
 import { TenantService } from "./tenant.service";
+import { TenantDnsService } from "./tenant-dns.service";
 import { PlatformAdminGuard } from "../common/guards/platform-admin.guard";
 import { UpdateTenantFeatureFlagsDto } from "./dto/update-tenant-feature-flags.dto";
 import { UpdateTenantProfileDto } from "./dto/update-tenant-profile.dto";
 import { SyncFromSsoDto } from "./dto/sync-from-sso.dto";
+import { CheckTenantDnsDto } from "./dto/check-tenant-dns.dto";
 
 @Controller()
 export class HealthController {
@@ -27,7 +29,10 @@ export class HealthController {
 
 @Controller("tenants")
 export class TenantController {
-  constructor(private readonly tenantService: TenantService) {}
+  constructor(
+    private readonly tenantService: TenantService,
+    private readonly tenantDnsService: TenantDnsService,
+  ) {}
 
   @Get()
   @UseGuards(PlatformAdminGuard)
@@ -113,5 +118,19 @@ export class TenantController {
     @Body() dto: UpdateTenantProfileDto,
   ) {
     return this.tenantService.updateProfile(tenantId, dto);
+  }
+
+  @Post(":tenantId/check-dns")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(PlatformAdminGuard)
+  async checkTenantDns(
+    @Param("tenantId") tenantId: string,
+    @Body() body: CheckTenantDnsDto,
+  ) {
+    const tenant = await this.tenantService.ensureTenantExists(tenantId);
+    const fromBody = body.hostname?.trim() ?? "";
+    const fromTenant = tenant.domain?.trim() ?? "";
+    const raw = fromBody.length > 0 ? fromBody : fromTenant;
+    return this.tenantDnsService.checkPublicDns(raw);
   }
 }

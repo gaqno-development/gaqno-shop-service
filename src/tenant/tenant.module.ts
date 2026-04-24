@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { TenantService } from "./tenant.service";
+import { TenantDnsService } from "./tenant-dns.service";
 import { TenantController, HealthController } from "./tenant.controller";
 import {
   PlatformAdminGuard,
@@ -24,6 +25,7 @@ import {
   ],
   providers: [
     TenantService,
+    TenantDnsService,
     PlatformAdminGuard,
     platformAdminHttpClientProvider,
     SsoTenantClient,
