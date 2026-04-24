@@ -1,4 +1,12 @@
-import { IsString, IsNumber, IsOptional, IsEnum, Min } from "class-validator";
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsEnum,
+  IsObject,
+  ValidateNested,
+} from "class-validator";
+import { Type, Transform } from "class-transformer";
 
 export enum PaymentMethod {
   CREDIT_CARD = "credit_card",
@@ -40,13 +48,81 @@ export class CreatePaymentDto {
   payerIdentificationNumber?: string;
 }
 
+class PaymentWebhookDataDto {
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => (value === null || value === undefined ? value : String(value)))
+  id?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @IsOptional()
+  @IsNumber()
+  transactionAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  transaction_amount?: number;
+
+  @IsOptional()
+  @IsString()
+  externalReference?: string;
+
+  @IsOptional()
+  @IsString()
+  external_reference?: string;
+
+  @IsOptional()
+  @IsString()
+  currency?: string;
+
+  @IsOptional()
+  @IsObject()
+  raw?: Record<string, unknown>;
+}
+
 export class PaymentWebhookDto {
+  @IsOptional()
   @IsString()
-  id: string;
+  @Transform(({ value }) => (value === null || value === undefined ? value : String(value)))
+  id?: string;
 
   @IsString()
-  type: string;
+  type!: string;
 
+  @IsOptional()
   @IsString()
-  dataId: string;
+  @Transform(({ value }) => (value === null || value === undefined ? value : String(value)))
+  dataId?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PaymentWebhookDataDto)
+  data?: PaymentWebhookDataDto;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @IsOptional()
+  @IsNumber()
+  transactionAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  transaction_amount?: number;
+
+  @IsOptional()
+  @IsString()
+  externalReference?: string;
+
+  @IsOptional()
+  @IsString()
+  external_reference?: string;
+
+  @IsOptional()
+  @IsString()
+  currency?: string;
 }

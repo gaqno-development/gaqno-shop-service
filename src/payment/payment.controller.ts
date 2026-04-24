@@ -33,11 +33,10 @@ export class PaymentController {
   @Post("webhook")
   async handleWebhook(
     @CurrentTenant() tenant: TenantContext,
+    @Headers("x-webhook-signature") signature: string | undefined,
     @Body() data: PaymentWebhookDto
   ) {
-    if (!tenant) {
-      return { error: "Tenant not found" };
-    }
-    return this.paymentService.handleWebhook(tenant.tenantId, data);
+    this.paymentService.assertWebhookSignature(signature);
+    return this.paymentService.handleWebhook(tenant?.tenantId, data);
   }
 }
