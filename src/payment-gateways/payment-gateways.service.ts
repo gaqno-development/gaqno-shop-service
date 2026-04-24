@@ -1,6 +1,9 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { and, eq } from "drizzle-orm";
-import { tenantPaymentGateways } from "../database/schema/tenant";
+import {
+  tenantFeatureFlags,
+  tenantPaymentGateways,
+} from "../database/schema/tenant";
 import { PaymentProvider } from "./payment-gateway.interface";
 import { PaymentGatewayFactory } from "./payment-gateway.factory";
 
@@ -14,6 +17,15 @@ interface UpsertCredentialsInput {
   readonly provider: PaymentProvider;
   readonly credentials: Record<string, unknown>;
   readonly isActive?: boolean;
+}
+
+interface ResolvedTenantGateway {
+  readonly id: string;
+  readonly tenantId: string;
+  readonly provider: PaymentProvider;
+  readonly credentials: Record<string, unknown>;
+  readonly isActive: boolean | null;
+  readonly isDefault: boolean | null;
 }
 
 @Injectable()
@@ -99,6 +111,64 @@ export class PaymentGatewaysService {
       .where(eq(tenantPaymentGateways.id, existing[0].id))
       .returning();
     return { gateway: updated, validation };
+  }
+
+  async getPreferredGatewayForTenant(
+    tenantId: string,
+    provider?: PaymentProvider,
+  ): Promise<ResolvedTenantGateway | null> {
+    const rows = await this.db
+      .select()
+      .from(tenantPaymentGateways)
+      .where(
+        provider
+          ? and(
+              eq(tenantPaymentGateways.tenantId, tenantId),
+              eq(tenantPaymentGateways.provider, provider),
+            )
+          : eq(tenantPaymentGateways.tenantId, tenantId),
+      );
+    const active = rows.filter((row: any) => row.isActive);
+    const scoped = active.length > 0 ? active : rows;
+    const preferred = scoped.find((row: any) => row.isDefault) ?? scoped[0];
+    if (!preferred) return null;
+    return preferred as ResolvedTenantGateway;
+  }
+
+  async getGatewayById(id: string): Promise<ResolvedTenantGateway | null> {
+    const rows = await this.db
+      .select()
+      .from(tenantPaymentGateways)
+      .where(eq(tenantPaymentGateways.id, id))
+      .limit(1);
+    const gateway = rows[0];
+    return gateway ? (gateway as ResolvedTenantGateway) : null;
+  }
+
+  async getEnabledPaymentMethods(tenantId: string): Promise<string[]> {
+    const gateway = await this.getPreferredGatewayForTenant(
+      tenantId,
+      "mercado_pago",
+    );
+    if (!gateway?.isActive) return [];
+    const flagsRows = await this.db
+      .select()
+      .from(tenantFeatureFlags)
+      .where(eq(tenantFeatureFlags.tenantId, tenantId))
+      .limit(1);
+    const flags = flagsRows[0];
+    const methods = [
+      "credit_card",
+      "pix",
+      "boleto",
+    ];
+    if (!flags) return methods;
+    const entries: Array<[string, boolean | null | undefined]> = [
+      ["credit_card", flags.featureCheckoutPro],
+      ["pix", flags.featurePix],
+      ["boleto", flags.featureCheckoutPro],
+    ];
+    return entries.filter(([, enabled]) => enabled !== false).map(([key]) => key);
   }
 
   async remove(tenantId: string, id: string) {

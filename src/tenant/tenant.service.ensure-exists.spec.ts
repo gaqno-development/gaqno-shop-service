@@ -207,10 +207,19 @@ describe("TenantService identity reconciliation for feature-flags", () => {
       slug: "fifia-doces",
       name: "Fifia Doces",
     };
-    const tenantsFindFirst = jest
-      .fn()
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(preSeededLocal);
+    let tenantFindFirstCalls = 0;
+    const tenantsFindFirst = jest.fn().mockImplementation(async () => {
+      tenantFindFirstCalls += 1;
+      if (tenantFindFirstCalls === 1) return null;
+      if (tenantFindFirstCalls === 2) return preSeededLocal;
+      return null;
+    });
+    const sso = makeSsoClient({
+      id: "sso-bbc8b4b7",
+      slug: "fifia-doces",
+      name: "Fifia Doces",
+      vertical: "bakery",
+    });
 
     const flagsFindFirst = jest.fn().mockResolvedValue(null);
     const insertReturning = jest
@@ -221,7 +230,7 @@ describe("TenantService identity reconciliation for feature-flags", () => {
       .mockReturnValue({ returning: insertReturning });
     const insertFn = jest.fn().mockReturnValue({ values: insertValues });
 
-    const updateReturning = jest.fn();
+    const updateReturning = jest.fn().mockResolvedValue([]);
     const updateWhere = jest
       .fn()
       .mockReturnValue({ returning: updateReturning });
@@ -237,12 +246,6 @@ describe("TenantService identity reconciliation for feature-flags", () => {
       update: updateFn,
     };
 
-    const sso = makeSsoClient({
-      id: "sso-bbc8b4b7",
-      slug: "fifia-doces",
-      name: "Fifia Doces",
-      vertical: "bakery",
-    });
     await buildService(db, sso);
 
     await service.updateFeatureFlags("sso-bbc8b4b7", {

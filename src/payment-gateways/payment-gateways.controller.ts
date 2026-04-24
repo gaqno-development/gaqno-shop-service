@@ -8,6 +8,7 @@ import {
   Param,
   Post,
   Query,
+  UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PaymentGatewaysService } from "./payment-gateways.service";
@@ -25,9 +26,11 @@ export class PaymentGatewaysController {
 
   private assertInternal(token: string | undefined) {
     const expected = this.config.get<string>("SHOP_INTERNAL_TOKEN");
-    if (!expected) return;
+    if (!expected) {
+      throw new UnauthorizedException("Internal token is not configured");
+    }
     if (token !== expected) {
-      throw new BadRequestException("Invalid internal token");
+      throw new UnauthorizedException("Invalid internal token");
     }
   }
 
@@ -44,13 +47,21 @@ export class PaymentGatewaysController {
   }
 
   @Get()
-  async list(@Query("tenantId") tenantId: string) {
+  async list(
+    @Headers("x-internal-token") token: string | undefined,
+    @Query("tenantId") tenantId: string
+  ) {
+    this.assertInternal(token);
     if (!tenantId) throw new BadRequestException("tenantId is required");
     return this.service.listForTenant(tenantId);
   }
 
   @Post("credentials")
-  async upsertCredentials(@Body() dto: UpsertCredentialsDto) {
+  async upsertCredentials(
+    @Headers("x-internal-token") token: string | undefined,
+    @Body() dto: UpsertCredentialsDto
+  ) {
+    this.assertInternal(token);
     return this.service.upsertCredentials({
       tenantId: dto.tenantId,
       provider: dto.provider,
@@ -60,9 +71,11 @@ export class PaymentGatewaysController {
 
   @Delete(":tenantId/:id")
   async remove(
+    @Headers("x-internal-token") token: string | undefined,
     @Param("tenantId") tenantId: string,
     @Param("id") id: string
   ) {
+    this.assertInternal(token);
     await this.service.remove(tenantId, id);
     return { success: true };
   }

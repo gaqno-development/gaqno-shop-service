@@ -3,6 +3,7 @@ import { PaymentService } from "./payment.service";
 import { CreatePaymentDto, PaymentWebhookDto } from "./dto/payment.dto";
 import { CurrentTenant } from "../common/decorators/current-tenant.decorator";
 import { TenantContext } from "../common/tenant-context";
+import { requireTenantId } from "../common/tenant-guard";
 
 @Controller("payments")
 export class PaymentController {
@@ -13,10 +14,7 @@ export class PaymentController {
     @CurrentTenant() tenant: TenantContext,
     @Body() dto: CreatePaymentDto
   ) {
-    if (!tenant) {
-      return { error: "Tenant not found" };
-    }
-    return this.paymentService.createPayment(tenant.tenantId, dto);
+    return this.paymentService.createPayment(requireTenantId(tenant?.tenantId), dto);
   }
 
   @Get("status/:orderNumber")
@@ -24,10 +22,12 @@ export class PaymentController {
     @CurrentTenant() tenant: TenantContext,
     @Param("orderNumber") orderNumber: string
   ) {
-    if (!tenant) {
-      return { error: "Tenant not found" };
-    }
-    return this.paymentService.getPaymentStatus(tenant.tenantId, orderNumber);
+    return this.paymentService.getPaymentStatus(requireTenantId(tenant?.tenantId), orderNumber);
+  }
+
+  @Get("methods")
+  async getPaymentMethods(@CurrentTenant() tenant: TenantContext) {
+    return this.paymentService.getEnabledPaymentMethods(requireTenantId(tenant?.tenantId));
   }
 
   @Post("webhook")
@@ -36,7 +36,6 @@ export class PaymentController {
     @Headers("x-webhook-signature") signature: string | undefined,
     @Body() data: PaymentWebhookDto
   ) {
-    this.paymentService.assertWebhookSignature(signature);
-    return this.paymentService.handleWebhook(tenant?.tenantId, data);
+    return this.paymentService.handleWebhook(tenant?.tenantId, signature, data);
   }
 }

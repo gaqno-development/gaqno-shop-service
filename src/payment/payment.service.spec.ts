@@ -1,6 +1,7 @@
 import { UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PaymentService } from "./payment.service";
+import { PaymentGatewaysService } from "../payment-gateways/payment-gateways.service";
 
 describe("PaymentService", () => {
   it("rejects webhook when secret is not configured", () => {
@@ -8,7 +9,8 @@ describe("PaymentService", () => {
     const config = {
       get: jest.fn().mockReturnValue(undefined),
     } as unknown as ConfigService;
-    const service = new PaymentService(db, config);
+    const gateways = {} as PaymentGatewaysService;
+    const service = new PaymentService(db, config, gateways);
 
     expect(() => service.assertWebhookSignature("invalid")).toThrow(
       UnauthorizedException,
@@ -20,7 +22,8 @@ describe("PaymentService", () => {
     const config = {
       get: jest.fn().mockReturnValue("expected-signature"),
     } as unknown as ConfigService;
-    const service = new PaymentService(db, config);
+    const gateways = {} as PaymentGatewaysService;
+    const service = new PaymentService(db, config, gateways);
 
     expect(() => service.assertWebhookSignature("invalid")).toThrow(
       UnauthorizedException,
@@ -35,6 +38,8 @@ describe("PaymentService", () => {
       total: "100.00",
       currency: "BRL",
       paidAt: new Date(),
+      tenantId: "tenant-1",
+      paymentGatewayId: "gateway-1",
     });
     const updateWhere = jest.fn();
     const updateSet = jest.fn().mockReturnValue({ where: updateWhere });
@@ -49,9 +54,14 @@ describe("PaymentService", () => {
     const config = {
       get: jest.fn().mockReturnValue("secret"),
     } as unknown as ConfigService;
-    const service = new PaymentService(db as any, config);
+    const gateways = {
+      getGatewayById: jest.fn().mockResolvedValue({
+        credentials: { webhook_secret: "secret" },
+      }),
+    } as unknown as PaymentGatewaysService;
+    const service = new PaymentService(db as any, config, gateways);
 
-    const result = await service.handleWebhook("tenant-1", {
+    const result = await service.handleWebhook("tenant-1", "secret", {
       type: "payment",
       dataId: "ext-123",
       status: "approved",
@@ -72,6 +82,8 @@ describe("PaymentService", () => {
       total: "100.00",
       currency: "BRL",
       paidAt: null,
+      tenantId: "tenant-1",
+      paymentGatewayId: "gateway-1",
     });
     const db = {
       query: {
@@ -82,15 +94,24 @@ describe("PaymentService", () => {
     const config = {
       get: jest.fn().mockReturnValue("secret"),
     } as unknown as ConfigService;
-    const service = new PaymentService(db as any, config);
+    const gateways = {
+      getGatewayById: jest.fn().mockResolvedValue({
+        credentials: { webhook_secret: "secret" },
+      }),
+    } as unknown as PaymentGatewaysService;
+    const service = new PaymentService(db as any, config, gateways);
 
-    const result = await service.handleWebhook("tenant-1", {
-      type: "payment",
-      data: { id: "ext-123", status: "pending" },
-      transactionAmount: 100,
-      externalReference: "ORD-1",
-      currency: "BRL",
-    });
+    const result = await service.handleWebhook(
+      "tenant-1",
+      "secret",
+      {
+        type: "payment",
+        data: { id: "ext-123", status: "pending" },
+        transactionAmount: 100,
+        externalReference: "ORD-1",
+        currency: "BRL",
+      },
+    );
 
     expect(result).toEqual({ received: true, ignored: true, status: "pending" });
     expect(db.update).not.toHaveBeenCalled();
@@ -104,6 +125,8 @@ describe("PaymentService", () => {
       total: "250.00",
       currency: "BRL",
       paidAt: null,
+      tenantId: "tenant-1",
+      paymentGatewayId: "gateway-1",
     });
     const db = {
       query: {
@@ -114,16 +137,25 @@ describe("PaymentService", () => {
     const config = {
       get: jest.fn().mockReturnValue("secret"),
     } as unknown as ConfigService;
-    const service = new PaymentService(db as any, config);
+    const gateways = {
+      getGatewayById: jest.fn().mockResolvedValue({
+        credentials: { webhook_secret: "secret" },
+      }),
+    } as unknown as PaymentGatewaysService;
+    const service = new PaymentService(db as any, config, gateways);
 
-    const result = await service.handleWebhook("tenant-1", {
-      type: "payment",
-      dataId: "ext-123",
-      status: "approved",
-      transactionAmount: 200,
-      externalReference: "ORD-1",
-      currency: "BRL",
-    });
+    const result = await service.handleWebhook(
+      "tenant-1",
+      "secret",
+      {
+        type: "payment",
+        dataId: "ext-123",
+        status: "approved",
+        transactionAmount: 200,
+        externalReference: "ORD-1",
+        currency: "BRL",
+      },
+    );
 
     expect(result).toEqual({ received: true, ignored: true, reason: "amount_mismatch" });
     expect(db.update).not.toHaveBeenCalled();
@@ -140,22 +172,23 @@ describe("PaymentService", () => {
         paymentExternalUrl: "https://pay",
         pixQrCode: null,
         pixQrCodeBase64: null,
-      })
-      .mockResolvedValueOnce({
-        id: "tenant-1",
-        mercadoPagoAccessToken: "token",
       });
     const db = {
       query: {
         orders: { findFirst },
-        tenants: { findFirst: jest.fn() },
       },
       update: jest.fn(),
     };
     const config = {
       get: jest.fn().mockReturnValue("secret"),
     } as unknown as ConfigService;
-    const service = new PaymentService(db as any, config);
+    const gateways = {
+      getPreferredGatewayForTenant: jest.fn().mockResolvedValue({
+        id: "gateway-1",
+        credentials: { access_token: "token" },
+      }),
+    } as unknown as PaymentGatewaysService;
+    const service = new PaymentService(db as any, config, gateways);
 
     const result = await service.createPayment("tenant-1", {
       orderNumber: "ORD-1",

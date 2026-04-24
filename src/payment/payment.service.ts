@@ -7,9 +7,10 @@ import {
   ConflictException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { orders, tenants } from "../database/schema";
+import { orders } from "../database/schema";
 import { eq, and } from "drizzle-orm";
 import { CreatePaymentDto, PaymentMethod } from "./dto/payment.dto";
+import { PaymentGatewaysService } from "../payment-gateways/payment-gateways.service";
 
 // Mercado Pago SDK mock - will be replaced with actual SDK
 interface MercadoPagoPreference {
@@ -39,7 +40,8 @@ const IN_FLIGHT_PAYMENT_STATUSES = new Set(["pending", "in_process", "authorized
 export class PaymentService {
   constructor(
     @Inject("DATABASE") private db: any,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private paymentGatewaysService: PaymentGatewaysService
   ) {}
 
   async createPayment(tenantId: string, dto: CreatePaymentDto) {
@@ -73,14 +75,12 @@ export class PaymentService {
       throw new ConflictException("Order payment is already approved");
     }
 
-    // Get tenant Mercado Pago credentials
-    const tenant = await this.db.query.tenants.findFirst({
-      where: eq(tenants.id, tenantId),
-    });
-
-    const accessToken = tenant?.mercadoPagoAccessToken;
-
-    if (!accessToken) {
+    const gateway = await this.paymentGatewaysService.getPreferredGatewayForTenant(
+      tenantId,
+      "mercado_pago",
+    );
+    const accessToken = gateway?.credentials?.access_token;
+    if (!accessToken || typeof accessToken !== "string") {
       throw new BadRequestException("Payment not configured for this tenant");
     }
 
@@ -93,18 +93,19 @@ export class PaymentService {
 
     // Create preference based on payment method
     if (dto.paymentMethod === PaymentMethod.PIX) {
-      return this.createPixPayment(order, items, accessToken, dto);
+      return this.createPixPayment(order, items, accessToken, dto, gateway?.id);
     }
 
     // For credit/debit cards and other methods
-    return this.createStandardPayment(order, items, accessToken, dto);
+    return this.createStandardPayment(order, items, accessToken, dto, gateway?.id);
   }
 
   private async createPixPayment(
     order: any,
     items: any[],
     accessToken: string,
-    dto: CreatePaymentDto
+    dto: CreatePaymentDto,
+    paymentGatewayId?: string,
   ) {
     // TODO: Integrate with Mercado Pago SDK for PIX
     // This is a mock implementation
@@ -129,6 +130,8 @@ export class PaymentService {
       .update(orders)
       .set({
         paymentMethod: "pix",
+        paymentProvider: "mercado_pago",
+        paymentGatewayId,
         paymentExternalId: mockPayment.id.toString(),
         pixQrCode: mockPayment.point_of_interaction?.transaction_data?.qr_code,
         pixQrCodeBase64:
@@ -150,7 +153,8 @@ export class PaymentService {
     order: any,
     items: any[],
     accessToken: string,
-    dto: CreatePaymentDto
+    dto: CreatePaymentDto,
+    paymentGatewayId?: string,
   ) {
     // TODO: Integrate with Mercado Pago SDK for credit/debit cards
     // This is a mock implementation
@@ -166,6 +170,8 @@ export class PaymentService {
       .update(orders)
       .set({
         paymentMethod: dto.paymentMethod,
+        paymentProvider: "mercado_pago",
+        paymentGatewayId,
         paymentExternalId: mockPreference.id,
         paymentExternalUrl: mockPreference.init_point,
       })
@@ -178,7 +184,11 @@ export class PaymentService {
     };
   }
 
-  async handleWebhook(tenantId: string | undefined, data: any) {
+  async handleWebhook(
+    tenantId: string | undefined,
+    signature: string | undefined,
+    data: any
+  ) {
     const { type } = data;
 
     if (type !== "payment") {
@@ -203,6 +213,9 @@ export class PaymentService {
     if (!existing) {
       return { received: true, ignored: true };
     }
+
+    const gatewayId = existing.paymentGatewayId as string | undefined;
+    await this.assertWebhookSignatureForTenant(signature, existing.tenantId, gatewayId);
 
     const status =
       String(data?.status ?? data?.data?.status ?? "")
@@ -260,6 +273,28 @@ export class PaymentService {
     return { received: true, updated: true };
   }
 
+  private async assertWebhookSignatureForTenant(
+    signature: string | undefined,
+    tenantId: string,
+    gatewayId?: string,
+  ) {
+    const gateway = gatewayId
+      ? await this.paymentGatewaysService.getGatewayById(gatewayId)
+      : await this.paymentGatewaysService.getPreferredGatewayForTenant(
+          tenantId,
+          "mercado_pago",
+        );
+    const configured =
+      (gateway?.credentials?.webhook_secret as string | undefined) ??
+      this.configService.get<string>("MERCADO_PAGO_WEBHOOK_SECRET");
+    if (!configured) {
+      throw new UnauthorizedException("Webhook secret is not configured");
+    }
+    if (signature !== configured) {
+      throw new UnauthorizedException("Invalid webhook signature");
+    }
+  }
+
   assertWebhookSignature(signature: string | undefined) {
     const configured = this.configService.get<string>("MERCADO_PAGO_WEBHOOK_SECRET");
     if (!configured) {
@@ -290,5 +325,9 @@ export class PaymentService {
       pixQrCodeBase64: order.pixQrCodeBase64,
       paymentUrl: order.paymentExternalUrl,
     };
+  }
+
+  async getEnabledPaymentMethods(tenantId: string) {
+    return this.paymentGatewaysService.getEnabledPaymentMethods(tenantId);
   }
 }

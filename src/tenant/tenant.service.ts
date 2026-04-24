@@ -42,7 +42,9 @@ export class TenantService {
 
   constructor(
     @Inject("DATABASE") private readonly db: ShopDatabase,
-    @Optional() private readonly ssoClient?: SsoTenantClient,
+    @Optional()
+    @Inject(SsoTenantClient)
+    private readonly ssoClient?: SsoTenantClient,
   ) {}
 
   async ensureTenantExists(tenantId: string) {
@@ -91,9 +93,9 @@ export class TenantService {
     const existingBySlug = await this.getBySlug(projection.slug);
     if (existingBySlug && existingBySlug.id !== projection.id) {
       this.logger.warn(
-        `Refused SSO sync for slug ${projection.slug}: local tenant ${existingBySlug.id} differs from SSO tenant ${projection.id}`,
+        `SSO tenant ${projection.id} maps to slug ${projection.slug} already owned by local tenant ${existingBySlug.id}; using local row`,
       );
-      return null;
+      return existingBySlug;
     }
     if (existingBySlug) {
       return existingBySlug;
