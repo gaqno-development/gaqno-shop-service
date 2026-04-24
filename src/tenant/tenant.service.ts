@@ -73,9 +73,30 @@ export class TenantService {
       );
       return null;
     }
-    const existing = await this.getBySlug(projection.slug);
-    if (existing) {
-      return existing;
+    const existingById = await this.getById(projection.id);
+    if (existingById) {
+      const [updated] = await this.db
+        .update(tenants)
+        .set({
+          slug: projection.slug,
+          name: projection.name,
+          vertical: projection.vertical ?? existingById.vertical ?? "generic",
+          isActive: true,
+          updatedAt: new Date(),
+        })
+        .where(eq(tenants.id, projection.id))
+        .returning();
+      return updated ?? existingById;
+    }
+    const existingBySlug = await this.getBySlug(projection.slug);
+    if (existingBySlug && existingBySlug.id !== projection.id) {
+      this.logger.warn(
+        `Refused SSO sync for slug ${projection.slug}: local tenant ${existingBySlug.id} differs from SSO tenant ${projection.id}`,
+      );
+      return null;
+    }
+    if (existingBySlug) {
+      return existingBySlug;
     }
     const [created] = await this.db
       .insert(tenants)

@@ -66,6 +66,29 @@ describe("TenantContextMiddleware", () => {
     expect(next).toHaveBeenCalled();
   });
 
+  it("prioritizes verified JWT tenant over spoofed tenant slug", async () => {
+    const tenantFromJwt = { ...tenant, id: "jwt-tenant", slug: "jwt-slug" };
+    const spoofedTenant = { ...tenant, id: "spoof-tenant", slug: "spoofed" };
+    jwtService.verify.mockReturnValue({ tenantId: "jwt-tenant" } as any);
+    tenantService.getById.mockResolvedValue(tenantFromJwt as any);
+    tenantService.getBySlug.mockResolvedValue(spoofedTenant as any);
+    const next = jest.fn().mockImplementation(() => {
+      expect(tenantContextStorage.getStore()?.tenantId).toBe("jwt-tenant");
+    });
+
+    await middleware.use(
+      makeReq({
+        authorization: "Bearer xyz",
+        "x-tenant-slug": "spoofed",
+      }) as any,
+      {} as any,
+      next,
+    );
+
+    expect(tenantService.getById).toHaveBeenCalledWith("jwt-tenant");
+    expect(next).toHaveBeenCalled();
+  });
+
   it("populates context from JWT tenantId when local getById succeeds", async () => {
     jwtService.verify.mockReturnValue({ tenantId: "sso-id-1" } as any);
     tenantService.getBySlug.mockResolvedValue(undefined as any);
@@ -85,12 +108,8 @@ describe("TenantContextMiddleware", () => {
     expect(next).toHaveBeenCalled();
   });
 
-  it("on local getById miss, falls back to SSO, upserts, then resolves locally by slug", async () => {
+  it("on local getById miss, falls back to SSO and upserts by SSO tenant id", async () => {
     jwtService.verify.mockReturnValue({ tenantId: "sso-id-1" } as any);
-    tenantService.getBySlug
-      .mockResolvedValueOnce(undefined as any)
-      .mockResolvedValueOnce(tenant as any);
-    tenantService.resolve.mockResolvedValue(undefined as any);
     tenantService.getById.mockResolvedValue(undefined as any);
     ssoClient.getById.mockResolvedValue({
       id: "sso-id-1",
@@ -112,6 +131,31 @@ describe("TenantContextMiddleware", () => {
     expect(ssoClient.getById).toHaveBeenCalledWith("sso-id-1");
     expect(tenantService.upsertFromSso).toHaveBeenCalled();
     expect(next).toHaveBeenCalled();
+  });
+
+  it("does not fallback by slug when SSO upsert fails", async () => {
+    jwtService.verify.mockReturnValue({ tenantId: "sso-id-1" } as any);
+    tenantService.getById.mockResolvedValue(undefined as any);
+    ssoClient.getById.mockResolvedValue({
+      id: "sso-id-1",
+      slug: "acme",
+      name: "Acme",
+      vertical: "bakery",
+    });
+    tenantService.upsertFromSso.mockResolvedValue(null as any);
+    tenantService.getBySlug.mockResolvedValue({ ...tenant, id: "legacy-id" } as any);
+    tenantService.resolve.mockResolvedValue(undefined as any);
+    const next = jest.fn();
+
+    await middleware.use(
+      makeReq({ authorization: "Bearer xyz" }) as any,
+      {} as any,
+      next,
+    );
+
+    expect(tenantService.getBySlug).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalled();
+    expect(tenantContextStorage.getStore()).toBeUndefined();
   });
 
   it("when no tenant can be resolved, calls next with empty context", async () => {
@@ -141,6 +185,26 @@ describe("TenantContextMiddleware", () => {
       next,
     );
 
+    expect(next).toHaveBeenCalled();
+  });
+
+  it("does not trust unverified JWT decode fallback", async () => {
+    jwtService.verify.mockImplementation(() => {
+      throw new Error("invalid token");
+    });
+    jwtService.decode.mockReturnValue({ tenantId: "spoof-tenant" } as any);
+    tenantService.getBySlug.mockResolvedValue(undefined as any);
+    tenantService.resolve.mockResolvedValue(undefined as any);
+    tenantService.getById.mockResolvedValue(undefined as any);
+    const next = jest.fn();
+
+    await middleware.use(
+      makeReq({ authorization: "Bearer invalid" }) as any,
+      {} as any,
+      next,
+    );
+
+    expect(tenantService.getById).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalled();
   });
 });

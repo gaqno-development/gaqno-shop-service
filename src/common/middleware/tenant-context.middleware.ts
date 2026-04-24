@@ -35,6 +35,14 @@ export class TenantContextMiddleware implements NestMiddleware {
   }
 
   private async resolveTenant(req: Request): Promise<Tenant | null | undefined> {
+    const tenantIdFromJwt = this.extractTenantIdFromAuth(req);
+    if (tenantIdFromJwt) {
+      const byId = await this.tenantService.getById(tenantIdFromJwt);
+      if (byId) return byId;
+      const synced = await this.lazySyncFromSso(tenantIdFromJwt);
+      if (synced) return synced;
+    }
+
     const slugHeader = req.headers["x-tenant-slug"] as string | undefined;
     if (slugHeader) {
       const bySlug = await this.tenantService.getBySlug(slugHeader);
@@ -46,14 +54,7 @@ export class TenantContextMiddleware implements NestMiddleware {
     const lookupDomain = domainHeader || host;
     const byDomain = await this.tenantService.resolve(lookupDomain);
     if (byDomain) return byDomain;
-
-    const tenantIdFromJwt = this.extractTenantIdFromAuth(req);
-    if (!tenantIdFromJwt) return null;
-
-    const byId = await this.tenantService.getById(tenantIdFromJwt);
-    if (byId) return byId;
-
-    return this.lazySyncFromSso(tenantIdFromJwt);
+    return null;
   }
 
   private async lazySyncFromSso(
@@ -69,9 +70,6 @@ export class TenantContextMiddleware implements NestMiddleware {
       }
       const upserted = await this.tenantService.upsertFromSso(projection);
       if (upserted) return upserted as Tenant;
-      if (projection.slug) {
-        return this.tenantService.getBySlug(projection.slug);
-      }
       return null;
     } catch (error) {
       this.logger.warn(
@@ -91,8 +89,7 @@ export class TenantContextMiddleware implements NestMiddleware {
       const decoded = this.jwtService.verify<JwtPayload>(token, { secret });
       return decoded.tenantId;
     } catch {
-      const decoded = this.jwtService.decode(token) as JwtPayload | null;
-      return decoded?.tenantId;
+      return undefined;
     }
   }
 
