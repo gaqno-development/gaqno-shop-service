@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { TenantController } from "./tenant.controller";
 import { TenantService } from "./tenant.service";
 import { TenantDnsService } from "./tenant-dns.service";
+import { TenantAssetsService } from "./tenant-assets.service";
 import { tenantContextStorage, TenantContext } from "../common/tenant-context";
 import {
   PLATFORM_ADMIN_HTTP_CLIENT,
@@ -40,6 +41,7 @@ describe("TenantController.currentFeatureFlags", () => {
       providers: [
         { provide: TenantService, useValue: tenantService },
         { provide: TenantDnsService, useValue: {} },
+        { provide: TenantAssetsService, useValue: { upload: jest.fn() } },
         {
           provide: PLATFORM_ADMIN_HTTP_CLIENT,
           useValue: { get: jest.fn() },

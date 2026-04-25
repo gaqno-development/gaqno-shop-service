@@ -1,6 +1,8 @@
 import {
   Body,
+  BadRequestException,
   Controller,
+  DefaultValuePipe,
   Get,
   Headers,
   HttpCode,
@@ -8,8 +10,12 @@ import {
   Param,
   Patch,
   Post,
+  Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { getCurrentTenant } from "../common/tenant-context";
 import { TenantService } from "./tenant.service";
 import { TenantDnsService } from "./tenant-dns.service";
@@ -19,6 +25,11 @@ import { UpdateTenantProfileDto } from "./dto/update-tenant-profile.dto";
 import { SyncFromSsoDto } from "./dto/sync-from-sso.dto";
 import { CheckTenantDnsDto } from "./dto/check-tenant-dns.dto";
 import { GenerateStorefrontCopySuggestionDto } from "./dto/generate-storefront-copy-suggestion.dto";
+import {
+  TENANT_ASSET_TYPES,
+  type TenantAssetType,
+} from "./dto/upload-tenant-asset.dto";
+import { TenantAssetsService } from "./tenant-assets.service";
 
 @Controller()
 export class HealthController {
@@ -33,6 +44,7 @@ export class TenantController {
   constructor(
     private readonly tenantService: TenantService,
     private readonly tenantDnsService: TenantDnsService,
+    private readonly tenantAssetsService: TenantAssetsService,
   ) {}
 
   @Get()
@@ -128,6 +140,25 @@ export class TenantController {
     @Body() dto: GenerateStorefrontCopySuggestionDto,
   ) {
     return this.tenantService.generateStorefrontCopySuggestion(tenantId, dto);
+  }
+
+  @Post(":tenantId/assets")
+  @UseGuards(PlatformAdminGuard)
+  @UseInterceptors(FileInterceptor("file"))
+  async uploadTenantAsset(
+    @Param("tenantId") tenantId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Query(
+      "type",
+      new DefaultValuePipe("hero"),
+    )
+    type: TenantAssetType,
+  ) {
+    if (!TENANT_ASSET_TYPES.includes(type)) {
+      throw new BadRequestException("Invalid asset type");
+    }
+    await this.tenantService.ensureTenantExists(tenantId);
+    return this.tenantAssetsService.upload(tenantId, type, file);
   }
 
   @Post(":tenantId/check-dns")

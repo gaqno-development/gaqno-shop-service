@@ -6,6 +6,7 @@ import {
   NotFoundException,
   Optional,
   BadRequestException,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { AxiosInstance } from "axios";
@@ -377,7 +378,12 @@ export class TenantService {
 
     const aiServiceUrl = this.configService.get<string>("AI_SERVICE_URL");
     if (!aiServiceUrl) {
-      throw new BadRequestException("AI_SERVICE_URL not configured");
+      this.logger.error(
+        `Storefront suggestion unavailable for tenant ${tenantId}: missing AI_SERVICE_URL`,
+      );
+      throw new ServiceUnavailableException(
+        "AI suggestion unavailable: AI_SERVICE_URL is missing in shop-service environment",
+      );
     }
     const aiSecret = this.configService.get<string>("INTERNAL_SYNC_SECRET") ?? "";
     const promptPayload = {
