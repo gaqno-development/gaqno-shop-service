@@ -1,6 +1,7 @@
 import {
   IsBoolean,
   IsIn,
+  IsObject,
   IsOptional,
   IsString,
   Matches,
@@ -107,4 +108,8 @@ export class UpdateTenantProfileDto {
   @IsOptional()
   @IsBoolean()
   analyticsEnabled?: boolean;
+
+  @IsOptional()
+  @IsObject()
+  storefrontCopy?: Record<string, unknown>;
 }

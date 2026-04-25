@@ -6,29 +6,6 @@ import { getCorsOptions } from "@gaqno-development/backcore";
 import { runMigrations } from "./database/migrate";
 import { AppModule } from "./app.module";
 
-const SHOP_ALLOWED_HEADERS = [
-  "Content-Type",
-  "Authorization",
-  "X-Requested-With",
-  "X-Tenant-Domain",
-  "X-Tenant-Slug",
-  "X-Session-Id",
-  "Referer",
-  "User-Agent",
-  "sec-ch-ua",
-  "sec-ch-ua-mobile",
-  "sec-ch-ua-platform",
-  "Origin",
-  "Accept",
-  "newrelic",
-  "traceparent",
-  "tracestate",
-  "x-tenant-id",
-  "x-user-id",
-  "x-signature",
-  "x-request-id",
-];
-
 function stripPrefix(req: Request, _res: Response, next: NextFunction): void {
   if (req.path.startsWith("/shop/socket.io")) {
     next();
@@ -55,12 +32,7 @@ async function bootstrap(): Promise<void> {
 
   app.use(stripPrefix);
 
-  app.enableCors(
-    getCorsOptions(
-      config as unknown as Parameters<typeof getCorsOptions>[0],
-      { allowedHeaders: SHOP_ALLOWED_HEADERS }
-    )
-  );
+  app.enableCors(getCorsOptions(config as unknown as Parameters<typeof getCorsOptions>[0]));
 
   app.setGlobalPrefix("v1");
   app.useGlobalPipes(new ValidationPipe({ 

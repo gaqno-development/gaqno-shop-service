@@ -43,6 +43,30 @@ const PAID_PAYMENT_STATUSES = ["approved", "authorized"] as const;
 
 @Injectable()
 export class TenantService {
+  private isPlainObject(value: unknown): value is Record<string, unknown> {
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  }
+
+  private mergePlainObject(
+    base: Record<string, unknown>,
+    incoming: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const merged: Record<string, unknown> = { ...base };
+    for (const [key, value] of Object.entries(incoming)) {
+      if (value === undefined) {
+        continue;
+      }
+      if (this.isPlainObject(value)) {
+        const currentValue = merged[key];
+        const currentObject = this.isPlainObject(currentValue) ? currentValue : {};
+        merged[key] = this.mergePlainObject(currentObject, value);
+        continue;
+      }
+      merged[key] = value;
+    }
+    return merged;
+  }
+
   private readMappedSsoTenantId(settings: unknown): string | null {
     if (!settings || typeof settings !== "object") return null;
     const value = (settings as { ssoTenantId?: unknown }).ssoTenantId;
@@ -402,6 +426,19 @@ export class TenantService {
     if (dto.analyticsEnabled !== undefined) {
       base.analyticsEnabled = dto.analyticsEnabled;
     }
+    if (dto.storefrontCopy !== undefined) {
+      if (dto.storefrontCopy === null || !this.isPlainObject(dto.storefrontCopy)) {
+        delete base.storefrontCopy;
+      } else {
+        const currentStorefrontCopy = this.isPlainObject(base.storefrontCopy)
+          ? base.storefrontCopy
+          : {};
+        base.storefrontCopy = this.mergePlainObject(
+          currentStorefrontCopy,
+          dto.storefrontCopy,
+        );
+      }
+    }
     return base;
   }
 
@@ -496,7 +533,8 @@ export class TenantService {
       dto.adminDomain !== undefined ||
       dto.publicShopUrl !== undefined ||
       dto.analyticsMeasurementId !== undefined ||
-      dto.analyticsEnabled !== undefined
+      dto.analyticsEnabled !== undefined ||
+      dto.storefrontCopy !== undefined
     ) {
       patch.settings = this.mergeIntoTenantSettings(resolved.settings, dto);
     }
