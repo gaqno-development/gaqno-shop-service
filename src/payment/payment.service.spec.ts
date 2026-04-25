@@ -75,4 +75,26 @@ describe("PaymentService", () => {
     });
     expect(db.update).not.toHaveBeenCalled();
   });
+
+  it("getEnabledPaymentMethods delegates to PaymentGatewaysService", async () => {
+    const getEnabledPaymentMethods = jest
+      .fn()
+      .mockResolvedValue(["credit_card", "pix", "boleto"]);
+    const gateways = {
+      getEnabledPaymentMethods,
+    } as unknown as PaymentGatewaysService;
+    const config = { get: jest.fn() } as unknown as ConfigService;
+    const service = new PaymentService(
+      {} as any,
+      config,
+      gateways,
+      noopFactory,
+    );
+    await expect(service.getEnabledPaymentMethods("t-1")).resolves.toEqual([
+      "credit_card",
+      "pix",
+      "boleto",
+    ]);
+    expect(getEnabledPaymentMethods).toHaveBeenCalledWith("t-1");
+  });
 });

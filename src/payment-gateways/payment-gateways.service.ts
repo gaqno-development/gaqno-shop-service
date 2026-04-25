@@ -1,9 +1,6 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { and, eq } from "drizzle-orm";
-import {
-  tenantFeatureFlags,
-  tenantPaymentGateways,
-} from "../database/schema/tenant";
+import { tenantPaymentGateways } from "../database/schema/tenant";
 import { PaymentProvider } from "./payment-gateway.interface";
 import { PaymentGatewayFactory } from "./payment-gateway.factory";
 
@@ -151,24 +148,7 @@ export class PaymentGatewaysService {
       "mercado_pago",
     );
     if (!gateway?.isActive) return [];
-    const flagsRows = await this.db
-      .select()
-      .from(tenantFeatureFlags)
-      .where(eq(tenantFeatureFlags.tenantId, tenantId))
-      .limit(1);
-    const flags = flagsRows[0];
-    const methods = [
-      "credit_card",
-      "pix",
-      "boleto",
-    ];
-    if (!flags) return methods;
-    const entries: Array<[string, boolean | null | undefined]> = [
-      ["credit_card", flags.featureCheckoutPro],
-      ["pix", flags.featurePix],
-      ["boleto", flags.featureCheckoutPro],
-    ];
-    return entries.filter(([, enabled]) => enabled !== false).map(([key]) => key);
+    return ["credit_card", "pix", "boleto"];
   }
 
   async remove(tenantId: string, id: string) {

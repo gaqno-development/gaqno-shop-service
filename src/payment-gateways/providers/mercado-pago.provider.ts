@@ -106,6 +106,15 @@ function singleItemFromInput(input: CheckoutInput): CheckoutItem {
   };
 }
 
+const MERCADO_PAGO_CHECKOUT_PRO_EXCLUDED_PAYMENT_TYPE_IDS: readonly { id: string }[] = [
+  { id: "account_money" },
+  { id: "atm" },
+  { id: "debit_card" },
+  { id: "prepaid_card" },
+  { id: "digital_currency" },
+  { id: "voucher" },
+];
+
 interface MpPaymentResponse {
   id: number | string;
   status?: string;
@@ -213,7 +222,7 @@ export class MercadoPagoProvider implements IPaymentGateway {
       external_reference: input.orderNumber,
       payment_methods: {
         excluded_payment_methods: [],
-        excluded_payment_types: [],
+        excluded_payment_types: [...MERCADO_PAGO_CHECKOUT_PRO_EXCLUDED_PAYMENT_TYPE_IDS],
         installments: input.installments ?? 12,
       },
       statement_descriptor: (input.statementDescriptor ?? "GAQNO").slice(0, 22),

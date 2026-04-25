@@ -199,6 +199,14 @@ describe("MercadoPagoProvider", () => {
       );
       expect(body.auto_return).toBe("approved");
       expect(body.payment_methods.installments).toBe(12);
+      expect(body.payment_methods.excluded_payment_types).toEqual([
+        { id: "account_money" },
+        { id: "atm" },
+        { id: "debit_card" },
+        { id: "prepaid_card" },
+        { id: "digital_currency" },
+        { id: "voucher" },
+      ]);
       expect(call[0].requestOptions.idempotencyKey).toBe("pref-ORD-0001");
     });
 
