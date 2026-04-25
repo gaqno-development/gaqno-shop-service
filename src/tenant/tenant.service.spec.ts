@@ -1,5 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import { ConfigService } from "@nestjs/config";
 import { TenantService } from "./tenant.service";
+import { AI_SERVICE_HTTP_CLIENT } from "./ai-service-client";
 
 function makeDb(overrides: {
   activeTenants: Array<{
@@ -45,7 +47,12 @@ describe("TenantService.listActiveWithSummary", () => {
   async function buildService(args: Parameters<typeof makeDb>[0]) {
     const db = makeDb(args);
     const module: TestingModule = await Test.createTestingModule({
-      providers: [TenantService, { provide: "DATABASE", useValue: db }],
+      providers: [
+        TenantService,
+        { provide: "DATABASE", useValue: db },
+        { provide: AI_SERVICE_HTTP_CLIENT, useValue: { post: jest.fn() } },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+      ],
     }).compile();
     service = module.get<TenantService>(TenantService);
   }
