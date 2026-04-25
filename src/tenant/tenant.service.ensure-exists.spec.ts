@@ -224,7 +224,7 @@ describe("TenantService identity reconciliation for feature-flags", () => {
     const flagsFindFirst = jest.fn().mockResolvedValue(null);
     const insertReturning = jest
       .fn()
-      .mockResolvedValue([{ tenantId: "local-seed-uuid", featureCheckoutPro: true }]);
+      .mockResolvedValue([{ tenantId: "local-seed-uuid", featureCreditCard: true }]);
     const insertValues = jest
       .fn()
       .mockReturnValue({ returning: insertReturning });
@@ -249,12 +249,13 @@ describe("TenantService identity reconciliation for feature-flags", () => {
     await buildService(db, sso);
 
     await service.updateFeatureFlags("sso-bbc8b4b7", {
-      featureCheckoutPro: true,
+      featureCreditCard: true,
     });
 
     expect(insertValues).toHaveBeenCalledTimes(1);
     const valuesArg = insertValues.mock.calls[0][0];
     expect(valuesArg.tenantId).toBe("local-seed-uuid");
+    expect(valuesArg.featureCreditCard).toBe(true);
     expect(valuesArg.featureCheckoutPro).toBe(true);
   });
 });
@@ -308,5 +309,78 @@ describe("TenantService.updateFeatureFlags with tenant sync", () => {
     await expect(
       service.updateFeatureFlags("missing", { featureRecipes: true }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe("TenantService.updateFeatureFlags featureCheckoutPro sync", () => {
+  let service: TenantService;
+  let updateSet: jest.Mock;
+
+  beforeEach(async () => {
+    const local = {
+      id: "t-local-1",
+      slug: "acme",
+      name: "Acme",
+      settings: null,
+    };
+    const updateReturning = jest.fn().mockResolvedValue([{ tenantId: "t-local-1" }]);
+    const updateWhere = jest
+      .fn()
+      .mockReturnValue({ returning: updateReturning });
+    updateSet = jest.fn().mockReturnValue({ where: updateWhere });
+    const updateFn = jest.fn().mockReturnValue({ set: updateSet });
+    const tenantsFindFirst = jest.fn().mockResolvedValue(local);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TenantService,
+        {
+          provide: "DATABASE",
+          useValue: {
+            query: {
+              tenants: { findFirst: tenantsFindFirst },
+              tenantFeatureFlags: {
+                findFirst: jest.fn().mockResolvedValue({
+                  tenantId: "t-local-1",
+                  featureCreditCard: true,
+                  featureBoleto: true,
+                }),
+              },
+            },
+            insert: jest.fn(),
+            update: updateFn,
+          },
+        },
+        { provide: SsoTenantClient, useValue: makeSsoClient(null) },
+      ],
+    }).compile();
+    service = module.get<TenantService>(TenantService);
+  });
+
+  it("writes featureCheckoutPro false when card and boleto are disabled", async () => {
+    await service.updateFeatureFlags("t-local-1", {
+      featureCreditCard: false,
+      featureBoleto: false,
+    });
+    const setArg = updateSet.mock.calls[0][0] as Record<string, unknown>;
+    expect(setArg).toEqual(
+      expect.objectContaining({
+        featureCreditCard: false,
+        featureBoleto: false,
+        featureCheckoutPro: false,
+      }),
+    );
+  });
+
+  it("keeps featureCheckoutPro true when only boleto is off but card stays on", async () => {
+    await service.updateFeatureFlags("t-local-1", {
+      featureBoleto: false,
+    });
+    const setArg = updateSet.mock.calls[0][0] as Record<string, unknown>;
+    expect(setArg).toEqual(
+      expect.objectContaining({
+        featureBoleto: false,
+        featureCheckoutPro: true,
+      }),
+    );
   });
 });

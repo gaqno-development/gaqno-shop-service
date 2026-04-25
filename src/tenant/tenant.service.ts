@@ -322,10 +322,31 @@ export class TenantService {
       where: eq(tenantFeatureFlags.tenantId, effectiveTenantId),
     });
 
+    const nextCredit =
+      typeof sanitized.featureCreditCard === "boolean"
+        ? sanitized.featureCreditCard
+        : (existing?.featureCreditCard ?? true);
+    const nextBoleto =
+      typeof sanitized.featureBoleto === "boolean"
+        ? sanitized.featureBoleto
+        : (existing?.featureBoleto ?? true);
+    const paymentMethodPatch =
+      typeof sanitized.featureCreditCard === "boolean" ||
+      typeof sanitized.featureBoleto === "boolean";
+    const featureCheckoutProSync = paymentMethodPatch
+      ? nextCredit || nextBoleto
+      : undefined;
+
     if (existing) {
       const [updated] = await this.db
         .update(tenantFeatureFlags)
-        .set({ ...sanitized, updatedAt: new Date() })
+        .set({
+          ...sanitized,
+          ...(featureCheckoutProSync !== undefined
+            ? { featureCheckoutPro: featureCheckoutProSync }
+            : {}),
+          updatedAt: new Date(),
+        })
         .where(eq(tenantFeatureFlags.tenantId, effectiveTenantId))
         .returning();
       return updated;
@@ -333,7 +354,13 @@ export class TenantService {
 
     const [created] = await this.db
       .insert(tenantFeatureFlags)
-      .values({ tenantId: effectiveTenantId, ...sanitized })
+      .values({
+        tenantId: effectiveTenantId,
+        ...sanitized,
+        ...(featureCheckoutProSync !== undefined
+          ? { featureCheckoutPro: featureCheckoutProSync }
+          : {}),
+      })
       .returning();
     return created;
   }

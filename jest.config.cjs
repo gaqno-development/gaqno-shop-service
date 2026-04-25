@@ -6,6 +6,7 @@ module.exports = {
     "<rootDir>/test/**/*.e2e-spec.ts",
     "<rootDir>/src/payment/**/*.spec.ts",
     "<rootDir>/src/payment-gateways/**/*.spec.ts",
+    "<rootDir>/src/tenant/**/*.spec.ts",
   ],
   moduleFileExtensions: ["ts", "js", "json"],
   transform: {

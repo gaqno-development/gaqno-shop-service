@@ -7,6 +7,20 @@ export async function applyTenantColumns(sql: SqlClient): Promise<void> {
 
   await sql`ALTER TABLE tenant_feature_flags ADD COLUMN IF NOT EXISTS feature_bakery BOOLEAN DEFAULT false`;
 
+  await sql`ALTER TABLE tenant_feature_flags ADD COLUMN IF NOT EXISTS feature_credit_card BOOLEAN`;
+  await sql`ALTER TABLE tenant_feature_flags ADD COLUMN IF NOT EXISTS feature_boleto BOOLEAN`;
+  await sql`
+    UPDATE tenant_feature_flags
+    SET
+      feature_credit_card = COALESCE(feature_checkout_pro, true),
+      feature_boleto = COALESCE(feature_checkout_pro, true)
+    WHERE feature_credit_card IS NULL OR feature_boleto IS NULL
+  `;
+  await sql`ALTER TABLE tenant_feature_flags ALTER COLUMN feature_credit_card SET DEFAULT true`;
+  await sql`ALTER TABLE tenant_feature_flags ALTER COLUMN feature_boleto SET DEFAULT true`;
+  await sql`ALTER TABLE tenant_feature_flags ALTER COLUMN feature_credit_card SET NOT NULL`;
+  await sql`ALTER TABLE tenant_feature_flags ALTER COLUMN feature_boleto SET NOT NULL`;
+
   await sql.unsafe(`
     DO $$
     BEGIN

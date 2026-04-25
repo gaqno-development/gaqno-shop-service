@@ -151,16 +151,29 @@ export class PaymentGatewaysService {
     const flags = await this.db.query.tenantFeatureFlags.findFirst({
       where: eq(tenantFeatureFlags.tenantId, tenantId),
     });
-    const checkoutProOn = flags?.featureCheckoutPro !== false;
-    const pixOn = flags?.featurePix !== false;
+    const f = flags as {
+      featureCreditCard?: boolean;
+      featureBoleto?: boolean;
+      featureCheckoutPro?: boolean;
+      featurePix?: boolean;
+    } | null;
+    const creditOn =
+      typeof f?.featureCreditCard === "boolean"
+        ? f.featureCreditCard
+        : f?.featureCheckoutPro !== false;
+    const boletoOn =
+      typeof f?.featureBoleto === "boolean"
+        ? f.featureBoleto
+        : f?.featureCheckoutPro !== false;
+    const pixOn = f?.featurePix !== false;
     const methods: string[] = [];
-    if (checkoutProOn) {
+    if (creditOn) {
       methods.push("credit_card");
     }
     if (pixOn) {
       methods.push("pix");
     }
-    if (checkoutProOn) {
+    if (boletoOn) {
       methods.push("boleto");
     }
     return methods;

@@ -58,6 +58,8 @@ export const tenantFeatureFlags = pgTable(
     featureRecipes: boolean("feature_recipes").default(false),
     featureInventory: boolean("feature_inventory").default(true),
     featureCheckoutPro: boolean("feature_checkout_pro").default(true),
+    featureCreditCard: boolean("feature_credit_card").default(true),
+    featureBoleto: boolean("feature_boleto").default(true),
     featurePix: boolean("feature_pix").default(true),
     featureDropshipping: boolean("feature_dropshipping").default(false),
     featureBakery: boolean("feature_bakery").default(false),

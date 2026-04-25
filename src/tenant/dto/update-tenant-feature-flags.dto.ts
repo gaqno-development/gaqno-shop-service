@@ -23,7 +23,11 @@ export class UpdateTenantFeatureFlagsDto {
 
   @IsOptional()
   @IsBoolean()
-  featureCheckoutPro?: boolean;
+  featureCreditCard?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  featureBoleto?: boolean;
 
   @IsOptional()
   @IsBoolean()
@@ -44,7 +48,8 @@ export const TENANT_FEATURE_FLAG_KEYS: readonly (keyof UpdateTenantFeatureFlagsD
   "featureCoupons",
   "featureRecipes",
   "featureInventory",
-  "featureCheckoutPro",
+  "featureCreditCard",
+  "featureBoleto",
   "featurePix",
   "featureDropshipping",
   "featureBakery",

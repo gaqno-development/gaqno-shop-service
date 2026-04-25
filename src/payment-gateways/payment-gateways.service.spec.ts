@@ -66,7 +66,47 @@ describe("PaymentGatewaysService.getEnabledPaymentMethods", () => {
     ).resolves.toEqual([...core]);
   });
 
-  it("omits credit_card and boleto when featureCheckoutPro is false", async () => {
+  it("omits credit_card when featureCreditCard is false", async () => {
+    const db = drizzleSelectChain(
+      [
+        {
+          id: "g1",
+          tenantId: "tenant-a",
+          provider: "mercado_pago",
+          isActive: true,
+          isDefault: true,
+          credentials: {},
+        },
+      ],
+      { featureCreditCard: false, featureBoleto: true, featurePix: true },
+    );
+    const service = new PaymentGatewaysService(db as never, factory);
+    await expect(
+      service.getEnabledPaymentMethods("tenant-a"),
+    ).resolves.toEqual(["pix", "boleto"]);
+  });
+
+  it("omits boleto when featureBoleto is false", async () => {
+    const db = drizzleSelectChain(
+      [
+        {
+          id: "g1",
+          tenantId: "tenant-a",
+          provider: "mercado_pago",
+          isActive: true,
+          isDefault: true,
+          credentials: {},
+        },
+      ],
+      { featureCreditCard: true, featureBoleto: false, featurePix: true },
+    );
+    const service = new PaymentGatewaysService(db as never, factory);
+    await expect(
+      service.getEnabledPaymentMethods("tenant-a"),
+    ).resolves.toEqual(["credit_card", "pix"]);
+  });
+
+  it("omits credit_card and boleto when featureCheckoutPro is false (legacy row)", async () => {
     const db = drizzleSelectChain(
       [
         {
@@ -98,7 +138,7 @@ describe("PaymentGatewaysService.getEnabledPaymentMethods", () => {
           credentials: {},
         },
       ],
-      { featureCheckoutPro: true, featurePix: false },
+      { featureCreditCard: true, featureBoleto: true, featurePix: false },
     );
     const service = new PaymentGatewaysService(db as never, factory);
     await expect(
