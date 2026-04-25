@@ -64,6 +64,12 @@ export async function applyBakeryTables(sql: SqlClient): Promise<void> {
     "BOOLEAN DEFAULT false",
   );
   await ensureColumn(sql, "products", "lead_days", "INTEGER");
+  await ensureColumn(
+    sql,
+    "products",
+    "allows_additional_decorations",
+    "BOOLEAN DEFAULT true",
+  );
   await ensureColumn(sql, "products", "recipe_id", "UUID");
   await ensureColumn(
     sql,

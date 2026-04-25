@@ -96,6 +96,12 @@ export class CheckoutService {
 
     for (const line of dto.items) {
       const product = byProductId.get(line.productId)!;
+      const decoPicks = line.decorations ?? [];
+      if (decoPicks.length > 0 && product.allowsAdditionalDecorations === false) {
+        throw new BadRequestException(
+          "Este produto não aceita decorações adicionais.",
+        );
+      }
       let baseUnit = Number(product.price);
       let displayName = product.name;
       let imageUrl: string | undefined;
@@ -149,6 +155,11 @@ export class CheckoutService {
       const ref = line.referenceImageUrl?.trim();
       const referenceImageUrl =
         ref && /^https:\/\//i.test(ref) ? ref : undefined;
+      if (referenceImageUrl && !product.allowsReferenceImage) {
+        throw new BadRequestException(
+          "Este produto não aceita imagem de referência.",
+        );
+      }
 
       resolvedItems.push({
         productId: line.productId,

@@ -83,6 +83,9 @@ export const products = pgTable(
     syncStatus: varchar("sync_status", { length: 20 }),
     allowsReferenceImage: boolean("allows_reference_image").default(false),
     leadDays: integer("lead_days"),
+    allowsAdditionalDecorations: boolean(
+      "allows_additional_decorations",
+    ).default(true),
     recipeId: uuid("recipe_id"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),

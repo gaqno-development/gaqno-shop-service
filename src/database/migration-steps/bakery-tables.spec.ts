@@ -101,12 +101,15 @@ describe("applyBakeryTables", () => {
     expect(stmt).toContain("ADD COLUMN IF NOT EXISTS feature_bakery");
   });
 
-  it("extends products with allows_reference_image, lead_days, recipe_id", async () => {
+  it("extends products with allows_reference_image, lead_days, allows_additional_decorations, recipe_id", async () => {
     const { sql, statements } = createSqlRecorder();
     await applyBakeryTables(sql);
     const joined = statements.join("\n");
     expect(joined).toContain("ADD COLUMN IF NOT EXISTS allows_reference_image");
     expect(joined).toContain("ADD COLUMN IF NOT EXISTS lead_days");
+    expect(joined).toContain(
+      "ADD COLUMN IF NOT EXISTS allows_additional_decorations",
+    );
     expect(joined).toContain("ADD COLUMN IF NOT EXISTS recipe_id");
   });
 

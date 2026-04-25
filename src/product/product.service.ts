@@ -129,7 +129,11 @@ export class ProductService {
 
   async findOne(tenantId: string, slug: string): Promise<Product> {
     const product = await this.db.query.products.findFirst({
-      where: and(eq(products.tenantId, tenantId), eq(products.slug, slug)),
+      where: and(
+        eq(products.tenantId, tenantId),
+        eq(products.slug, slug),
+        eq(products.isActive, true),
+      ),
       with: {
         category: true,
       },

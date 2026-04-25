@@ -2,11 +2,13 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
   IsUUID,
   Min,
+  ValidateIf,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { PRODUCT_SORT_VALUES, type ProductSortValue } from "./product-sort.constants";
@@ -63,6 +65,21 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   isFeatured?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  allowsReferenceImage?: boolean;
+
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  leadDays?: number | null;
+
+  @IsOptional()
+  @IsBoolean()
+  allowsAdditionalDecorations?: boolean;
 }
 
 export class UpdateProductDto {
@@ -104,6 +121,21 @@ export class UpdateProductDto {
   @IsArray()
   @IsString({ each: true })
   images?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  allowsReferenceImage?: boolean;
+
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  leadDays?: number | null;
+
+  @IsOptional()
+  @IsBoolean()
+  allowsAdditionalDecorations?: boolean;
 }
 
 export class ProductQueryDto {
