@@ -2,13 +2,18 @@ import { PaymentGatewaysService } from "./payment-gateways.service";
 import { tenantPaymentGateways } from "../database/schema/tenant";
 import { PaymentGatewayFactory } from "./payment-gateway.factory";
 
-function drizzleSelectChain(rows: unknown[]) {
+function drizzleSelectChain(rows: unknown[], flags: unknown | null = null) {
   return {
     select: jest.fn().mockReturnValue({
       from: jest.fn().mockReturnValue({
         where: jest.fn().mockImplementation(() => Promise.resolve(rows)),
       }),
     }),
+    query: {
+      tenantFeatureFlags: {
+        findFirst: jest.fn().mockResolvedValue(flags),
+      },
+    },
   };
 }
 
@@ -41,21 +46,64 @@ describe("PaymentGatewaysService.getEnabledPaymentMethods", () => {
     ).resolves.toEqual([]);
   });
 
-  it("returns credit_card, pix, boleto when Mercado Pago gateway is active", async () => {
-    const db = drizzleSelectChain([
-      {
-        id: "g1",
-        tenantId: "tenant-a",
-        provider: "mercado_pago",
-        isActive: true,
-        isDefault: true,
-        credentials: {},
-      },
-    ]);
+  it("returns credit_card, pix, boleto when Mercado Pago gateway is active and flags default (all on)", async () => {
+    const db = drizzleSelectChain(
+      [
+        {
+          id: "g1",
+          tenantId: "tenant-a",
+          provider: "mercado_pago",
+          isActive: true,
+          isDefault: true,
+          credentials: {},
+        },
+      ],
+      null,
+    );
     const service = new PaymentGatewaysService(db as never, factory);
     await expect(
       service.getEnabledPaymentMethods("tenant-a"),
     ).resolves.toEqual([...core]);
+  });
+
+  it("omits credit_card and boleto when featureCheckoutPro is false", async () => {
+    const db = drizzleSelectChain(
+      [
+        {
+          id: "g1",
+          tenantId: "tenant-a",
+          provider: "mercado_pago",
+          isActive: true,
+          isDefault: true,
+          credentials: {},
+        },
+      ],
+      { featureCheckoutPro: false, featurePix: true },
+    );
+    const service = new PaymentGatewaysService(db as never, factory);
+    await expect(
+      service.getEnabledPaymentMethods("tenant-a"),
+    ).resolves.toEqual(["pix"]);
+  });
+
+  it("omits pix when featurePix is false", async () => {
+    const db = drizzleSelectChain(
+      [
+        {
+          id: "g1",
+          tenantId: "tenant-a",
+          provider: "mercado_pago",
+          isActive: true,
+          isDefault: true,
+          credentials: {},
+        },
+      ],
+      { featureCheckoutPro: true, featurePix: false },
+    );
+    const service = new PaymentGatewaysService(db as never, factory);
+    await expect(
+      service.getEnabledPaymentMethods("tenant-a"),
+    ).resolves.toEqual(["credit_card", "boleto"]);
   });
 
   it("queries tenant payment gateways (from/where) for mercado pago", async () => {

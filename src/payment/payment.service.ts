@@ -185,6 +185,15 @@ export class PaymentService {
       throw new BadRequestException("Payment not configured for this tenant");
     }
 
+    const enabledMethods = await this.getEnabledPaymentMethods(tenantId);
+    if (enabledMethods.length === 0) {
+      throw new BadRequestException("No payment methods are enabled for this store");
+    }
+    const requested = String(dto.paymentMethod);
+    if (!enabledMethods.includes(requested)) {
+      throw new BadRequestException("This payment method is not available for this store");
+    }
+
     const credentials = gateway.credentials as GatewayCredentials;
     const mp = this.paymentGatewayFactory.get("mercado_pago");
 
