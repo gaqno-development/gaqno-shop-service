@@ -1,5 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import { ConfigService } from "@nestjs/config";
 import { TenantService } from "./tenant.service";
+import { AI_SERVICE_HTTP_CLIENT } from "./ai-service-client";
 
 interface FlagRow {
   readonly tenantId: string;
@@ -43,7 +45,12 @@ describe("TenantService.updateFeatureFlags", () => {
 
   async function buildService(dbValue: unknown) {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [TenantService, { provide: "DATABASE", useValue: dbValue }],
+      providers: [
+        TenantService,
+        { provide: "DATABASE", useValue: dbValue },
+        { provide: AI_SERVICE_HTTP_CLIENT, useValue: { post: jest.fn() } },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+      ],
     }).compile();
     service = module.get<TenantService>(TenantService);
   }
