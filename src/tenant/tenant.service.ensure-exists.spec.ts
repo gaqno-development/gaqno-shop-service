@@ -1,6 +1,8 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { NotFoundException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { TenantService } from "./tenant.service";
+import { AI_SERVICE_HTTP_CLIENT } from "./ai-service-client";
 import {
   SsoTenantClient,
   SsoPublicOrgProjection,
@@ -86,6 +88,8 @@ describe("TenantService.ensureTenantExists", () => {
       providers: [
         TenantService,
         { provide: "DATABASE", useValue: db },
+        { provide: AI_SERVICE_HTTP_CLIENT, useValue: { post: jest.fn() } },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
         { provide: SsoTenantClient, useValue: ssoClient },
       ],
     }).compile();
@@ -148,6 +152,8 @@ describe("TenantService.getFeatureFlags with tenant sync", () => {
       providers: [
         TenantService,
         { provide: "DATABASE", useValue: db },
+        { provide: AI_SERVICE_HTTP_CLIENT, useValue: { post: jest.fn() } },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
         { provide: SsoTenantClient, useValue: ssoClient },
       ],
     }).compile();
@@ -195,6 +201,8 @@ describe("TenantService identity reconciliation for feature-flags", () => {
       providers: [
         TenantService,
         { provide: "DATABASE", useValue: db },
+        { provide: AI_SERVICE_HTTP_CLIENT, useValue: { post: jest.fn() } },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
         { provide: SsoTenantClient, useValue: ssoClient },
       ],
     }).compile();
@@ -268,6 +276,8 @@ describe("TenantService.updateFeatureFlags with tenant sync", () => {
       providers: [
         TenantService,
         { provide: "DATABASE", useValue: db },
+        { provide: AI_SERVICE_HTTP_CLIENT, useValue: { post: jest.fn() } },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
         { provide: SsoTenantClient, useValue: ssoClient },
       ],
     }).compile();
@@ -350,6 +360,8 @@ describe("TenantService.updateFeatureFlags featureCheckoutPro sync", () => {
             update: updateFn,
           },
         },
+        { provide: AI_SERVICE_HTTP_CLIENT, useValue: { post: jest.fn() } },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
         { provide: SsoTenantClient, useValue: makeSsoClient(null) },
       ],
     }).compile();
@@ -382,5 +394,77 @@ describe("TenantService.updateFeatureFlags featureCheckoutPro sync", () => {
         featureCheckoutPro: true,
       }),
     );
+  });
+});
+
+describe("TenantService.updateProfile storefrontCopy normalization", () => {
+  let service: TenantService;
+  let updateSet: jest.Mock;
+
+  beforeEach(async () => {
+    const local = {
+      id: "tenant-local-1",
+      slug: "acme",
+      domain: "acme.example.com",
+      name: "Acme",
+      settings: {
+        storefrontCopy: {
+          v: 1,
+          home: {
+            sections: {
+              featuredTitle: "Legado",
+              featuredEyebrow: "Legado",
+              catalogTitle: "Catalogo vigente",
+              catalogEyebrow: "Catalogo",
+            },
+          },
+        },
+      },
+    };
+    const updateReturning = jest.fn().mockResolvedValue([{ id: "tenant-local-1" }]);
+    const updateWhere = jest.fn().mockReturnValue({ returning: updateReturning });
+    updateSet = jest.fn().mockReturnValue({ where: updateWhere });
+    const updateFn = jest.fn().mockReturnValue({ set: updateSet });
+    const tenantsFindFirst = jest.fn().mockResolvedValue(local);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TenantService,
+        {
+          provide: "DATABASE",
+          useValue: {
+            query: {
+              tenants: { findFirst: tenantsFindFirst },
+              tenantFeatureFlags: { findFirst: jest.fn().mockResolvedValue(null) },
+            },
+            insert: jest.fn(),
+            update: updateFn,
+          },
+        },
+        { provide: AI_SERVICE_HTTP_CLIENT, useValue: { post: jest.fn() } },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: SsoTenantClient, useValue: makeSsoClient(null) },
+      ],
+    }).compile();
+    service = module.get<TenantService>(TenantService);
+  });
+
+  it("removes legacy featured section keys while preserving catalog section keys", async () => {
+    await service.updateProfile("tenant-local-1", {
+      storefrontCopy: {
+        home: {
+          hero: { line1: "Atualizado" },
+        },
+      },
+    });
+
+    const setArg = updateSet.mock.calls[0][0] as Record<string, unknown>;
+    const settings = setArg.settings as Record<string, unknown>;
+    const storefrontCopy = settings.storefrontCopy as Record<string, unknown>;
+    const home = storefrontCopy.home as Record<string, unknown>;
+    const sections = home.sections as Record<string, unknown>;
+    expect(sections.featuredTitle).toBeUndefined();
+    expect(sections.featuredEyebrow).toBeUndefined();
+    expect(sections.catalogTitle).toBe("Catalogo vigente");
+    expect(sections.catalogEyebrow).toBe("Catalogo");
   });
 });

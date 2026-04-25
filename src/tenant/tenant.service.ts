@@ -85,6 +85,22 @@ export class TenantService {
     return merged;
   }
 
+  private normalizeStorefrontCopy(
+    storefrontCopy: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const normalized = this.mergePlainObject({}, storefrontCopy);
+    const home = this.readObject(normalized.home);
+    const sections = this.readObject(home?.sections);
+    if (sections) {
+      delete sections.featuredTitle;
+      delete sections.featuredEyebrow;
+      if (Object.keys(sections).length === 0 && home) {
+        delete home.sections;
+      }
+    }
+    return normalized;
+  }
+
   private readMappedSsoTenantId(settings: unknown): string | null {
     if (!settings || typeof settings !== "object") return null;
     const value = (settings as { ssoTenantId?: unknown }).ssoTenantId;
@@ -562,10 +578,11 @@ export class TenantService {
         const currentStorefrontCopy = this.isPlainObject(base.storefrontCopy)
           ? base.storefrontCopy
           : {};
-        base.storefrontCopy = this.mergePlainObject(
-          currentStorefrontCopy,
-          dto.storefrontCopy,
+        const mergedStorefrontCopy = this.mergePlainObject(
+          currentStorefrontCopy as Record<string, unknown>,
+          dto.storefrontCopy as Record<string, unknown>,
         );
+        base.storefrontCopy = this.normalizeStorefrontCopy(mergedStorefrontCopy);
       }
     }
     return base;
