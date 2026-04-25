@@ -6,9 +6,11 @@ import {
   NotFoundException,
   Optional,
   BadRequestException,
+  BadGatewayException,
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { AxiosError } from "axios";
 import type { AxiosInstance } from "axios";
 import { and, asc, eq, gte, inArray, ne, sql } from "drizzle-orm";
 import {
@@ -408,21 +410,39 @@ export class TenantService {
       "You generate storefrontCopy.home in pt-BR from tenant products. Return only a JSON object with keys v and home. Keep tone premium and conversion-focused.";
     const userPrompt = `Create a storefrontCopy suggestion using this data:\n${JSON.stringify(promptPayload)}`;
     const url = `${aiServiceUrl.replace(/\/+$/, "")}/v1/responses`;
-    const response = await this.aiHttpClient.post<Record<string, unknown>>(
-      url,
-      {
-        model: "gpt-4o-mini",
-        system_prompt: systemPrompt,
-        user_prompt: userPrompt,
-        response_format: "json",
-        temperature: 0.7,
-        max_tokens: 1800,
-      },
-      {
-        headers: { "x-internal-secret": aiSecret },
-        timeout: 12000,
-      },
-    );
+    let response: { data: Record<string, unknown> };
+    try {
+      response = await this.aiHttpClient.post<Record<string, unknown>>(
+        url,
+        {
+          model: "gpt-4o-mini",
+          system_prompt: systemPrompt,
+          user_prompt: userPrompt,
+          response_format: "json",
+          temperature: 0.7,
+          max_tokens: 1800,
+        },
+        {
+          headers: {
+            "x-internal-secret": aiSecret,
+            "x-tenant-id": tenant.id,
+            "x-user-id": "shop-service",
+          },
+          timeout: 12000,
+        },
+      );
+    } catch (error) {
+      const err = error as AxiosError<{ message?: string }>;
+      const upstreamStatus = err.response?.status;
+      const upstreamMessage =
+        err.response?.data?.message ??
+        err.message ??
+        "Unknown AI upstream error";
+      this.logger.error(
+        `AI suggestion upstream failed for tenant ${tenantId} (status=${upstreamStatus ?? "n/a"}): ${upstreamMessage}`,
+      );
+      throw new BadGatewayException(`AI suggestion failed: ${upstreamMessage}`);
+    }
     const suggestedRoot = this.extractSuggestedStorefrontCopy(response.data);
     return {
       storefrontCopy: suggestedRoot,
