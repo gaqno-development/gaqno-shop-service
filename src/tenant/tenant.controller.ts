@@ -18,6 +18,7 @@ import { UpdateTenantFeatureFlagsDto } from "./dto/update-tenant-feature-flags.d
 import { UpdateTenantProfileDto } from "./dto/update-tenant-profile.dto";
 import { SyncFromSsoDto } from "./dto/sync-from-sso.dto";
 import { CheckTenantDnsDto } from "./dto/check-tenant-dns.dto";
+import { GenerateStorefrontCopySuggestionDto } from "./dto/generate-storefront-copy-suggestion.dto";
 
 @Controller()
 export class HealthController {
@@ -118,6 +119,15 @@ export class TenantController {
     @Body() dto: UpdateTenantProfileDto,
   ) {
     return this.tenantService.updateProfile(tenantId, dto);
+  }
+
+  @Post(":tenantId/storefront-copy/suggest")
+  @UseGuards(PlatformAdminGuard)
+  async generateStorefrontCopySuggestion(
+    @Param("tenantId") tenantId: string,
+    @Body() dto: GenerateStorefrontCopySuggestionDto,
+  ) {
+    return this.tenantService.generateStorefrontCopySuggestion(tenantId, dto);
   }
 
   @Post(":tenantId/check-dns")

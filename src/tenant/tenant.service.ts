@@ -7,10 +7,14 @@ import {
   Optional,
   BadRequestException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import type { AxiosInstance } from "axios";
 import { and, asc, eq, gte, inArray, ne, sql } from "drizzle-orm";
 import {
+  categories,
   customers,
   orders,
+  products,
   tenantFeatureFlags,
   tenants,
 } from "../database/schema";
@@ -25,6 +29,8 @@ import {
   UpdateTenantFeatureFlagsDto,
 } from "./dto/update-tenant-feature-flags.dto";
 import { UpdateTenantProfileDto } from "./dto/update-tenant-profile.dto";
+import { AI_SERVICE_HTTP_CLIENT } from "./ai-service-client";
+import { GenerateStorefrontCopySuggestionDto } from "./dto/generate-storefront-copy-suggestion.dto";
 
 export interface ITenantSummaryRow {
   readonly id: string;
@@ -40,6 +46,18 @@ export interface ITenantSummaryRow {
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const PAID_PAYMENT_STATUSES = ["approved", "authorized"] as const;
+const DEFAULT_SUGGESTION_MAX_PRODUCTS = 12;
+
+interface IStorefrontSuggestionMetadata {
+  readonly model: string | null;
+  readonly generatedAt: string;
+  readonly sourceProductsCount: number;
+}
+
+export interface IStorefrontCopySuggestionResult {
+  readonly storefrontCopy: Record<string, unknown>;
+  readonly metadata: IStorefrontSuggestionMetadata;
+}
 
 @Injectable()
 export class TenantService {
@@ -125,6 +143,9 @@ export class TenantService {
 
   constructor(
     @Inject("DATABASE") private readonly db: ShopDatabase,
+    @Inject(AI_SERVICE_HTTP_CLIENT)
+    private readonly aiHttpClient: AxiosInstance,
+    private readonly configService: ConfigService,
     @Optional()
     @Inject(SsoTenantClient)
     private readonly ssoClient?: SsoTenantClient,
@@ -315,6 +336,114 @@ export class TenantService {
         customersCount: customerMap.get(tenant.id) ?? 0,
       };
     });
+  }
+
+  async generateStorefrontCopySuggestion(
+    tenantId: string,
+    dto: GenerateStorefrontCopySuggestionDto,
+  ): Promise<IStorefrontCopySuggestionResult> {
+    const tenant = await this.ensureTenantExists(tenantId);
+    const maxProducts = dto.maxProducts ?? DEFAULT_SUGGESTION_MAX_PRODUCTS;
+    const rows = await this.db
+      .select({
+        id: products.id,
+        name: products.name,
+        description: products.description,
+        shortDescription: products.shortDescription,
+        price: products.price,
+        categoryName: categories.name,
+      })
+      .from(products)
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .where(and(eq(products.tenantId, tenant.id), eq(products.isActive, true)))
+      .orderBy(asc(products.updatedAt))
+      .limit(maxProducts);
+
+    const aiServiceUrl = this.configService.get<string>("AI_SERVICE_URL");
+    if (!aiServiceUrl) {
+      throw new BadRequestException("AI_SERVICE_URL not configured");
+    }
+    const aiSecret = this.configService.get<string>("INTERNAL_SYNC_SECRET") ?? "";
+    const promptPayload = {
+      tenant: {
+        id: tenant.id,
+        name: tenant.name,
+        slug: tenant.slug,
+        vertical: tenant.vertical,
+        description: tenant.description,
+      },
+      products: rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        description: row.description ?? row.shortDescription ?? "",
+        category: row.categoryName ?? "",
+        price: Number(row.price ?? 0),
+      })),
+      additionalContext: dto.additionalContext?.trim() ?? "",
+    };
+
+    const systemPrompt =
+      "You generate storefrontCopy.home in pt-BR from tenant products. Return only a JSON object with keys v and home. Keep tone premium and conversion-focused.";
+    const userPrompt = `Create a storefrontCopy suggestion using this data:\n${JSON.stringify(promptPayload)}`;
+    const url = `${aiServiceUrl.replace(/\/+$/, "")}/v1/responses`;
+    const response = await this.aiHttpClient.post<Record<string, unknown>>(
+      url,
+      {
+        model: "gpt-4o-mini",
+        system_prompt: systemPrompt,
+        user_prompt: userPrompt,
+        response_format: "json",
+        temperature: 0.7,
+        max_tokens: 1800,
+      },
+      {
+        headers: { "x-internal-secret": aiSecret },
+        timeout: 12000,
+      },
+    );
+    const suggestedRoot = this.extractSuggestedStorefrontCopy(response.data);
+    return {
+      storefrontCopy: suggestedRoot,
+      metadata: {
+        model: "gpt-4o-mini",
+        generatedAt: new Date().toISOString(),
+        sourceProductsCount: rows.length,
+      },
+    };
+  }
+
+  private extractSuggestedStorefrontCopy(
+    payload: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const directCopy = this.readObject(payload.storefrontCopy);
+    if (directCopy) {
+      return directCopy;
+    }
+    const contentValue = payload.content;
+    if (typeof contentValue === "string") {
+      try {
+        const parsed = JSON.parse(contentValue) as unknown;
+        const parsedObject = this.readObject(parsed);
+        if (parsedObject) {
+          const nestedCopy = this.readObject(parsedObject.storefrontCopy);
+          return nestedCopy ?? parsedObject;
+        }
+      } catch {
+        throw new BadRequestException("AI response is not valid JSON");
+      }
+    }
+    const asObject = this.readObject(payload);
+    if (!asObject) {
+      throw new BadRequestException("AI response payload is invalid");
+    }
+    return asObject;
+  }
+
+  private readObject(value: unknown): Record<string, unknown> | null {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return null;
+    }
+    return value as Record<string, unknown>;
   }
 
   async getFeatureFlags(tenantId: string) {

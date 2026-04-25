@@ -28,6 +28,7 @@ describe("Tenant HTTP (integration)", () => {
     getVerticalPreset: jest.fn(),
     updateFeatureFlags: jest.fn(),
     updateProfile: jest.fn(),
+    generateStorefrontCopySuggestion: jest.fn(),
   };
   const mockTenantDnsService = {
     checkPublicDns: jest.fn(),
@@ -212,6 +213,38 @@ describe("Tenant HTTP (integration)", () => {
       expect.objectContaining({ storefrontCopy }),
     );
     expect(res.body.settings).toEqual({ storefrontCopy });
+  });
+
+  it("POST /v1/tenants/:id/storefront-copy/suggest requests AI suggestion", async () => {
+    const suggestion = {
+      storefrontCopy: {
+        v: 1,
+        home: {
+          hero: {
+            eyebrow: "Feito para sua vitrine",
+            primaryCtaLabel: "Comprar agora",
+          },
+        },
+      },
+      metadata: {
+        model: "gpt-4o-mini",
+        generatedAt: "2026-04-25T18:00:00.000Z",
+        sourceProductsCount: 5,
+      },
+    };
+    mockTenantService.generateStorefrontCopySuggestion.mockResolvedValue(suggestion);
+
+    const res = await request(app.getHttpServer())
+      .post("/v1/tenants/local-tenant-1/storefront-copy/suggest")
+      .set("Authorization", "Bearer test-token")
+      .send({ maxProducts: 5 })
+      .expect(201);
+
+    expect(mockTenantService.generateStorefrontCopySuggestion).toHaveBeenCalledWith(
+      "local-tenant-1",
+      expect.objectContaining({ maxProducts: 5 }),
+    );
+    expect(res.body).toEqual(suggestion);
   });
 
   it("POST /v1/tenants/switch returns success with tenant when found", async () => {

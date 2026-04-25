@@ -12,6 +12,7 @@ import {
   SsoTenantClient,
   ssoTenantHttpClientProvider,
 } from "../common/sso-tenant-client";
+import { aiServiceHttpClientProvider } from "./ai-service-client";
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import {
     platformAdminHttpClientProvider,
     SsoTenantClient,
     ssoTenantHttpClientProvider,
+    aiServiceHttpClientProvider,
   ],
   controllers: [TenantController, HealthController],
   exports: [TenantService, JwtModule, SsoTenantClient],
