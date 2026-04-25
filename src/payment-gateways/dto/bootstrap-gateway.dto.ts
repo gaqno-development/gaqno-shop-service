@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsString, IsUUID } from "class-validator";
+import { IsEnum, IsNotEmpty, IsObject, IsString, IsUUID } from "class-validator";
 
 const PROVIDERS = ["mercado_pago", "stripe", "pagseguro"] as const;
 
@@ -21,5 +21,7 @@ export class UpsertCredentialsDto {
   @IsEnum(PROVIDERS)
   provider!: (typeof PROVIDERS)[number];
 
+  @IsObject()
+  @IsNotEmpty()
   credentials!: Record<string, unknown>;
 }
