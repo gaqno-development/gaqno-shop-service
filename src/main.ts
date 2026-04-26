@@ -1,21 +1,9 @@
 import { NestFactory } from "@nestjs/core";
 import { ConfigService } from "@nestjs/config";
 import { ValidationPipe } from "@nestjs/common";
-import { Request, Response, NextFunction } from "express";
 import { getCorsOptions } from "@gaqno-development/backcore";
 import { runMigrations } from "./database/migrate";
 import { AppModule } from "./app.module";
-
-function stripShopPrefix(
-  req: Request,
-  _res: Response,
-  next: NextFunction
-): void {
-  if (req.path.startsWith("/shop")) {
-    req.url = req.url.replace(/^\/shop/, "") || "/";
-  }
-  next();
-}
 
 async function bootstrap(): Promise<void> {
   const configService = new ConfigService();
@@ -32,7 +20,6 @@ async function bootstrap(): Promise<void> {
 
   app.enableCors(getCorsOptions(config as unknown as Parameters<typeof getCorsOptions>[0]));
   app.setGlobalPrefix("v1");
-  app.use(stripShopPrefix);
   app.useGlobalPipes(new ValidationPipe({ 
     whitelist: true, 
     transform: true,
