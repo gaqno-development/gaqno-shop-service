@@ -96,3 +96,22 @@ export class ImportProductDto implements DropshippingImportRequest {
   @IsBoolean()
   makeActive?: boolean;
 }
+
+export class ImportedProductsQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  pageSize?: number;
+
+  @IsOptional()
+  @IsIn(["active", "inactive"])
+  status?: "active" | "inactive";
+}

@@ -24,6 +24,12 @@ export interface ImportedProductRecord {
   readonly costBrl: number;
   readonly sourceProvider: string;
   readonly sourceProductId: string;
+  readonly isActive: boolean;
+  readonly marginPercent: number;
+  readonly categoryId?: string;
+  readonly categoryName?: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
 }
 
 export interface ImportProductInput {
@@ -41,7 +47,23 @@ export interface ImportedProductRepositoryPort {
     providerCode: string,
     externalId: string,
   ): Promise<ImportedProductRecord | undefined>;
+  findAll(
+    tenantId: string,
+    query: ImportedProductsQuery,
+  ): Promise<ImportedProductsResult>;
+  findById(tenantId: string, productId: string): Promise<ImportedProductRecord | undefined>;
   insert(input: ImportedProductInsertInput): Promise<ImportedProductRecord>;
+  update(
+    tenantId: string,
+    productId: string,
+    data: { isActive?: boolean; marginPercent?: number; categoryId?: string },
+  ): Promise<void>;
+  delete(tenantId: string, productId: string): Promise<void>;
+  bulkAction(
+    tenantId: string,
+    productIds: readonly string[],
+    action: "activate" | "deactivate" | "delete",
+  ): Promise<void>;
 }
 
 export const IMPORTED_PRODUCT_REPOSITORY = Symbol(
@@ -64,4 +86,17 @@ export interface ImportedProductInsertInput {
   readonly marginOverridePercent?: number;
   readonly attributes: Record<string, string>;
   readonly isActive: boolean;
+}
+
+export interface ImportedProductsResult {
+  readonly items: readonly ImportedProductRecord[];
+  readonly total: number;
+  readonly page: number;
+  readonly pageSize: number;
+}
+
+export interface ImportedProductsQuery {
+  readonly page: number;
+  readonly pageSize: number;
+  readonly status?: "active" | "inactive";
 }

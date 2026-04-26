@@ -2,8 +2,10 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
 } from "@nestjs/common";
@@ -16,8 +18,10 @@ import type {
 import { getCurrentTenant } from "../common/tenant-context";
 import { DropshippingCatalogService } from "./dropshipping-catalog.service";
 import { DropshippingImportService } from "./dropshipping-import.service";
+import type { ImportedProductsQuery } from "./dropshipping-import.types";
 import {
   DropshippingSearchQueryDto,
+  ImportedProductsQueryDto,
   ImportProductDto,
 } from "./dto/dropshipping.dto";
 
@@ -61,5 +65,52 @@ export class DropshippingAdminController {
       overrideMarginPercent: dto.overrideMarginPercent,
       makeActive: dto.makeActive ?? true,
     });
+  }
+
+  @Get("products")
+  async listProducts(
+    @Query() query: ImportedProductsQueryDto,
+  ): Promise<{
+    items: readonly DropshippingImportedProduct[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    const tenant = getCurrentTenant();
+    if (!tenant) throw new BadRequestException("Tenant context is required");
+    return this.importer.listProducts({
+      tenantId: tenant.tenantId,
+      page: query.page ?? 1,
+      pageSize: query.pageSize ?? 20,
+      status: query.status,
+    });
+  }
+
+  @Patch("products/:productId")
+  async updateProduct(
+    @Param("productId") productId: string,
+    @Body() body: { isActive?: boolean; marginPercent?: number; categoryId?: string },
+  ): Promise<void> {
+    const tenant = getCurrentTenant();
+    if (!tenant) throw new BadRequestException("Tenant context is required");
+    await this.importer.updateProduct(tenant.tenantId, productId, body);
+  }
+
+  @Delete("products/:productId")
+  async deleteProduct(
+    @Param("productId") productId: string,
+  ): Promise<void> {
+    const tenant = getCurrentTenant();
+    if (!tenant) throw new BadRequestException("Tenant context is required");
+    await this.importer.deleteProduct(tenant.tenantId, productId);
+  }
+
+  @Post("products/bulk")
+  async bulkAction(
+    @Body() body: { productIds: readonly string[]; action: "activate" | "deactivate" | "delete" },
+  ): Promise<void> {
+    const tenant = getCurrentTenant();
+    if (!tenant) throw new BadRequestException("Tenant context is required");
+    await this.importer.bulkAction(tenant.tenantId, body.productIds, body.action);
   }
 }

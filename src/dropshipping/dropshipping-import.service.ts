@@ -8,11 +8,17 @@ import {
   type ImportProductInput,
   type ImportedProductRecord,
   type ImportedProductRepositoryPort,
+  type ImportedProductsQuery,
+  type ImportedProductsResult,
 } from "./dropshipping-import.types";
 import { calculateFinalPrice } from "./pricing/margin-calculator";
 import { FxRateService } from "./pricing/fx-rate.service";
 import { SUPPLIER_PROVIDER_REGISTRY } from "./providers/provider-tokens";
 import type { ProviderRegistry } from "./providers/provider-registry";
+
+interface ListProductsInput extends ImportedProductsQuery {
+  readonly tenantId: string;
+}
 
 @Injectable()
 export class DropshippingImportService {
@@ -95,5 +101,31 @@ export class DropshippingImportService {
       rounding,
     });
     return { costBrl, finalPriceBrl };
+  }
+
+  async listProducts(
+    input: ListProductsInput,
+  ): Promise<ImportedProductsResult> {
+    return this.productRepo.findAll(input.tenantId, input);
+  }
+
+  async updateProduct(
+    tenantId: string,
+    productId: string,
+    data: { isActive?: boolean; marginPercent?: number; categoryId?: string },
+  ): Promise<void> {
+    await this.productRepo.update(tenantId, productId, data);
+  }
+
+  async deleteProduct(tenantId: string, productId: string): Promise<void> {
+    await this.productRepo.delete(tenantId, productId);
+  }
+
+  async bulkAction(
+    tenantId: string,
+    productIds: readonly string[],
+    action: "activate" | "deactivate" | "delete",
+  ): Promise<void> {
+    await this.productRepo.bulkAction(tenantId, productIds, action);
   }
 }

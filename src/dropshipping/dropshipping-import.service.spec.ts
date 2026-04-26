@@ -50,7 +50,19 @@ function createProductRepo(): ImportedProductRepositoryPort & {
           r.sourceProductId === externalId,
       );
     },
+    async findAll(tenantId, query) {
+      return {
+        items: rows.filter((r) => r.tenantId === tenantId),
+        total: rows.length,
+        page: query.page,
+        pageSize: query.pageSize,
+      };
+    },
+    async findById(tenantId, productId) {
+      return rows.find((r) => r.tenantId === tenantId && r.id === productId);
+    },
     async insert(input) {
+      const now = new Date().toISOString();
       const record: ImportedProductRecord = {
         id: `prod-${rows.length + 1}`,
         tenantId: input.tenantId,
@@ -60,10 +72,17 @@ function createProductRepo(): ImportedProductRepositoryPort & {
         costBrl: input.costBrl,
         sourceProvider: input.sourceProvider,
         sourceProductId: input.sourceProductId,
+        isActive: input.isActive,
+        marginPercent: input.marginOverridePercent ?? 0,
+        createdAt: now,
+        updatedAt: now,
       };
       rows.push(record);
       return record;
     },
+    async update() {},
+    async delete() {},
+    async bulkAction() {},
   };
 }
 
