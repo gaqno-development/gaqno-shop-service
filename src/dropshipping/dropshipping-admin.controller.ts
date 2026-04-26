@@ -24,22 +24,12 @@ import {
   ImportProductDto,
 } from "./dto/dropshipping.dto";
 
-@Controller("dropship")
+@Controller("dropshipping")
 export class DropshippingAdminController {
   constructor(
     private readonly catalog: DropshippingCatalogService,
     private readonly importer: DropshippingImportService,
   ) {}
-
-  @Get("debug")
-  debug(): { path: string; timestamp: number } {
-    return { path: "admin/dropshipping", timestamp: Date.now() };
-  }
-
-  @Get("admin/test")
-  test(): { ok: boolean; timestamp: number } {
-    return { ok: true, timestamp: Date.now() };
-  }
 
   @Get("providers")
   listProviders(): DropshippingProvidersResponse {
@@ -98,7 +88,7 @@ export class DropshippingAdminController {
     await this.importer.deleteProduct(tenant.tenantId, productId);
   }
 
-  @Post("products/bulk")
+  @Post("bulk")
   async bulkAction(
     @Body() body: { productIds: readonly string[]; action: "activate" | "deactivate" | "delete" },
   ): Promise<void> {
