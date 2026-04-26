@@ -7,8 +7,8 @@ import { runMigrations } from "./database/migrate";
 import { AppModule } from "./app.module";
 
 function stripShopPrefix(req: Request, _res: Response, next: NextFunction): void {
-  if (req.path.startsWith("/shop/")) {
-    req.url = req.url.replace(/^\/shop\//, "/");
+  if (req.path.startsWith("/shop")) {
+    req.url = req.url.replace(/^\/shop\/?/, "/");
     (req as Request & { path: string }).path = req.url;
   }
   next();
