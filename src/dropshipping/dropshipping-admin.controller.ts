@@ -24,14 +24,19 @@ import {
   ImportProductDto,
 } from "./dto/dropshipping.dto";
 
-@Controller("admin/dropshipping")
+@Controller("dropship")
 export class DropshippingAdminController {
   constructor(
     private readonly catalog: DropshippingCatalogService,
     private readonly importer: DropshippingImportService,
   ) {}
 
-  @Get("test")
+  @Get("debug")
+  debug(): { path: string; timestamp: number } {
+    return { path: "admin/dropshipping", timestamp: Date.now() };
+  }
+
+  @Get("admin/test")
   test(): { ok: boolean; timestamp: number } {
     return { ok: true, timestamp: Date.now() };
   }
