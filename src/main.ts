@@ -14,7 +14,7 @@ function stripPrefix(req: Request, _res: Response, next: NextFunction): void {
   if (req.path.startsWith("/shop")) {
     const newPath = req.path.replace(/^\/shop/, "") || "/";
     req.url = req.url.replace(/^\/shop/, "") || "/";
-    req.path = newPath;
+    (req as Request & { path: string }).path = newPath;
   }
   next();
 }
