@@ -13,6 +13,8 @@ import {
 import { Type } from "class-transformer";
 import { PRODUCT_SORT_VALUES, type ProductSortValue } from "./product-sort.constants";
 
+const DECORATION_TYPES = ["topping", "filling", "message", "theme", "extra"] as const;
+
 export class CreateProductDto {
   @IsString()
   name: string;
@@ -80,6 +82,11 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   allowsAdditionalDecorations?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID("4", { each: true })
+  enabledCustomizationTypeIds?: string[];
 }
 
 export class UpdateProductDto {
@@ -136,6 +143,11 @@ export class UpdateProductDto {
   @IsOptional()
   @IsBoolean()
   allowsAdditionalDecorations?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID("4", { each: true })
+  enabledCustomizationTypeIds?: string[];
 }
 
 export class ProductQueryDto {

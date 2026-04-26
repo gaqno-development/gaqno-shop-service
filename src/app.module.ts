@@ -6,6 +6,7 @@ import { EventEmitterModule } from "@nestjs/event-emitter";
 import { DatabaseModule } from "./database/database.module";
 import { TenantModule } from "./tenant/tenant.module";
 import { ProductModule } from "./product/product.module";
+import { CustomizationTypesModule } from "./product/customization-types/customization-types.module";
 import { CategoryModule } from "./category/category.module";
 import { OrderModule } from "./order/order.module";
 import { CustomerModule } from "./customer/customer.module";
@@ -53,6 +54,7 @@ import { FeatureFlagGuard } from "./common/guards/feature-flag.guard";
     AuthModule,
     TenantModule,
     ProductModule,
+    CustomizationTypesModule,
     CategoryModule,
     OrderModule,
     CustomerModule,

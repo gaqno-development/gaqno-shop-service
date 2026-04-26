@@ -97,7 +97,9 @@ export class CheckoutService {
     for (const line of dto.items) {
       const product = byProductId.get(line.productId)!;
       const decoPicks = line.decorations ?? [];
-      if (decoPicks.length > 0 && product.allowsAdditionalDecorations === false) {
+      const allowsAnyDecorations =
+        product.allowsAdditionalDecorations !== false;
+      if (decoPicks.length > 0 && !allowsAnyDecorations) {
         throw new BadRequestException(
           "Este produto não aceita decorações adicionais.",
         );

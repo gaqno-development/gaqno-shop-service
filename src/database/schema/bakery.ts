@@ -168,6 +168,10 @@ export const decorations = pgTable(
     description: text("description"),
     price: decimal("price", { precision: 10, scale: 2 }).notNull().default("0"),
     type: decorationTypeEnum("type").notNull(),
+    customizationTypeId: uuid("customization_type_id").references(
+      () => customizationTypes.id,
+      { onDelete: "set null" },
+    ),
     imageUrl: varchar("image_url", { length: 500 }),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at").defaultNow(),
@@ -175,6 +179,29 @@ export const decorations = pgTable(
   },
   (table) => ({
     tenantIdx: index("bakery_decorations_tenant_idx").on(table.tenantId),
+  }),
+);
+
+export const customizationTypes = pgTable(
+  "product_customization_types",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 100 }).notNull(),
+    slug: varchar("slug", { length: 100 }).notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    tenantIdx: index("customization_types_tenant_idx").on(table.tenantId),
+    tenantSlugIdx: uniqueIndex("customization_types_tenant_slug_idx").on(
+      table.tenantId,
+      table.slug,
+    ),
   }),
 );
 
@@ -309,6 +336,8 @@ export type NewDecoration = typeof decorations.$inferInsert;
 export type ProductDecoration = typeof productDecorations.$inferSelect;
 export type OrderItemDecoration = typeof orderItemDecorations.$inferSelect;
 export type NewOrderItemDecoration = typeof orderItemDecorations.$inferInsert;
+export type CustomizationType = typeof customizationTypes.$inferSelect;
+export type NewCustomizationType = typeof customizationTypes.$inferInsert;
 export type ProductSize = typeof productSizes.$inferSelect;
 export type NewProductSize = typeof productSizes.$inferInsert;
 export type AdminEvent = typeof adminEvents.$inferSelect;

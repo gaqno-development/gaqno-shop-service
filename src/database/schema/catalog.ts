@@ -86,6 +86,9 @@ export const products = pgTable(
     allowsAdditionalDecorations: boolean(
       "allows_additional_decorations",
     ).default(true),
+    enabledCustomizationTypeIds: jsonb("enabled_customization_type_ids").default(
+      [] as string[],
+    ),
     recipeId: uuid("recipe_id"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
