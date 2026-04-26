@@ -36,6 +36,7 @@ async function bootstrap(): Promise<void> {
 
   app.enableCors(getCorsOptions(config as unknown as Parameters<typeof getCorsOptions>[0]));
 
+  app.setGlobalPrefix("v1");
   app.useGlobalPipes(new ValidationPipe({ 
     whitelist: true, 
     transform: true,
