@@ -24,92 +24,12 @@ import {
   ImportProductDto,
 } from "./dto/dropshipping.dto";
 
-@Controller("dropship")
+@Controller("drp")
 export class DropshippingAdminController {
-  constructor(
-    private readonly catalog: DropshippingCatalogService,
-    private readonly importer: DropshippingImportService,
-  ) {}
+  constructor() {}
 
-  @Get("providers")
-  listProviders(): DropshippingProvidersResponse {
-    return { providers: this.catalog.availableProviders() };
-  }
-
-  @Get("products")
-  async listProducts(
-    @Query() query: ImportedProductsQueryDto,
-  ): Promise<{
-    items: readonly DropshippingImportedProduct[];
-    total: number;
-    page: number;
-    pageSize: number;
-  }> {
-    const tenant = getCurrentTenant();
-    if (!tenant) throw new BadRequestException("Tenant context is required");
-    return this.importer.listProducts({
-      tenantId: tenant.tenantId,
-      page: query.page ?? 1,
-      pageSize: query.pageSize ?? 20,
-      status: query.status,
-    });
-  }
-
-  @Post("import")
-  async import(@Body() dto: ImportProductDto): Promise<DropshippingImportedProduct> {
-    const tenant = getCurrentTenant();
-    if (!tenant) throw new BadRequestException("Tenant context is required");
-    return this.importer.importProduct({
-      tenantId: tenant.tenantId,
-      providerCode: dto.providerCode,
-      externalId: dto.externalId,
-      categoryId: dto.categoryId,
-      overrideMarginPercent: dto.overrideMarginPercent,
-      makeActive: dto.makeActive ?? true,
-    });
-  }
-
-  @Patch("products/:productId")
-  async updateProduct(
-    @Param("productId") productId: string,
-    @Body() body: { isActive?: boolean; marginPercent?: number; categoryId?: string },
-  ): Promise<void> {
-    const tenant = getCurrentTenant();
-    if (!tenant) throw new BadRequestException("Tenant context is required");
-    await this.importer.updateProduct(tenant.tenantId, productId, body);
-  }
-
-  @Delete("products/:productId")
-  async deleteProduct(
-    @Param("productId") productId: string,
-  ): Promise<void> {
-    const tenant = getCurrentTenant();
-    if (!tenant) throw new BadRequestException("Tenant context is required");
-    await this.importer.deleteProduct(tenant.tenantId, productId);
-  }
-
-  @Post("bulk")
-  async bulkAction(
-    @Body() body: { productIds: readonly string[]; action: "activate" | "deactivate" | "delete" },
-  ): Promise<void> {
-    const tenant = getCurrentTenant();
-    if (!tenant) throw new BadRequestException("Tenant context is required");
-    await this.importer.bulkAction(tenant.tenantId, body.productIds, body.action);
-  }
-
-  @Get("search/:providerCode")
-  search(
-    @Param("providerCode") providerCode: string,
-    @Query() query: DropshippingSearchQueryDto,
-  ): Promise<DropshippingSearchResponse> {
-    return this.catalog.search({ providerCode, ...query });
-  }
-
-  @Get(":providerCode/product/:externalId")
-  getDetails(
-    @Param("providerCode") providerCode: string,
-    @Param("externalId") externalId: string,
-  ): Promise<SupplierProductDetail> {
-    return this.catalog.getDetails(providerCode, externalId);
+  @Get("test")
+  test(): { ok: boolean } {
+    return { ok: true };
   }
 }
