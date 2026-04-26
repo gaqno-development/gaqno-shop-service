@@ -12,12 +12,8 @@ function stripPrefix(req: Request, _res: Response, next: NextFunction): void {
     return;
   }
   if (req.path.startsWith("/shop")) {
-    let newPath = req.path.replace(/^\/shop/, "");
-    if (newPath.startsWith("/v1")) {
-      newPath = newPath.replace(/^\/v1/, "");
-    }
-    newPath = newPath || "/";
-    req.url = req.url.replace(/^\/shop\/v1/, "") || req.url.replace(/^\/shop/, "") || "/";
+    const newPath = req.path.replace(/^\/shop/, "") || "/";
+    req.url = req.url.replace(/^\/shop/, "") || "/";
     (req as Request & { path: string }).path = newPath;
   }
   next();
@@ -40,7 +36,6 @@ async function bootstrap(): Promise<void> {
 
   app.enableCors(getCorsOptions(config as unknown as Parameters<typeof getCorsOptions>[0]));
 
-  app.setGlobalPrefix("v1");
   app.useGlobalPipes(new ValidationPipe({ 
     whitelist: true, 
     transform: true,
