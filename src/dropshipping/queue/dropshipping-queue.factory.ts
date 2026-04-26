@@ -1,12 +1,13 @@
 import { Queue } from "bullmq";
-import {
-  DROPSHIPPING_QUEUE_NAME,
-  type DropshippingQueueJobPayload,
+import type {
+  DropshippingQueueJobPayload,
 } from "@gaqno-development/types";
 import type {
   BullQueueLike,
   BullJobOptionsLike,
 } from "./dropshipping-queue.producer";
+
+const DROPSHIPPING_QUEUE_NAME = "dropshipping";
 
 export interface BullQueueConnection {
   readonly host: string;
