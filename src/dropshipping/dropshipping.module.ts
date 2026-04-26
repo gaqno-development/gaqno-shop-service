@@ -55,7 +55,7 @@ const ALIEXPRESS_ENV_KEYS = [
       inject: [ConfigService],
     }) as never,
   ],
-  controllers: [DropshippingAdminController, DropshippingQueueAdminController],
+  controllers: [DropshippingAdminController],
   providers: [
     MockSupplierProvider,
     DropshippingCatalogService,
