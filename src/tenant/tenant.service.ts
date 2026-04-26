@@ -407,7 +407,7 @@ export class TenantService {
     };
 
     const systemPrompt =
-      "You generate storefrontCopy.home in pt-BR from tenant products. Return only a JSON object with keys v and home. Keep tone premium and conversion-focused.";
+      "You generate storefrontCopy.home in pt-BR from tenant products. Return only a JSON object with keys v and home. The home object should include: heroEyebrow, heroTitle, heroSubtitle; categoriesEyebrow (label above categories, e.g. 'Coleções'), categoriesSectionTitle (title for category section, e.g. 'Por categoria'), ctaLabel (explore link text, e.g. 'Explorar'); sectionCatalogEyebrow, sectionCatalogTitle; sections.featured[]. Keep tone premium and conversion-focused.";
     const userPrompt = `Create a storefrontCopy suggestion using this data:\n${JSON.stringify(promptPayload)}`;
     const url = `${aiServiceUrl.replace(/\/+$/, "")}/v1/responses`;
     let response: { data: Record<string, unknown> };
