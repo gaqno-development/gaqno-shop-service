@@ -20,7 +20,7 @@ import {
   RetryTicketDto,
 } from "./dto/queue-admin.dto";
 
-@Controller("dropshipping/queue")
+@Controller("dropshipq")
 export class DropshippingQueueAdminController {
   constructor(private readonly service: DropshippingQueueAdminService) {}
 
