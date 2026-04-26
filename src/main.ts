@@ -1,27 +1,9 @@
 import { NestFactory } from "@nestjs/core";
 import { ConfigService } from "@nestjs/config";
 import { ValidationPipe } from "@nestjs/common";
-import { Request, Response, NextFunction } from "express";
 import { getCorsOptions } from "@gaqno-development/backcore";
 import { runMigrations } from "./database/migrate";
 import { AppModule } from "./app.module";
-
-function stripPrefix(req: Request, _res: Response, next: NextFunction): void {
-  if (req.path.startsWith("/shop/socket.io")) {
-    next();
-    return;
-  }
-  if (req.path.startsWith("/shop")) {
-    let newPath = req.path.replace(/^\/shop/, "");
-    if (newPath.startsWith("/v1")) {
-      newPath = newPath.replace(/^\/v1/, "");
-    }
-    newPath = newPath || "/";
-    req.url = newPath;
-    (req as Request & { path: string }).path = newPath;
-  }
-  next();
-}
 
 async function bootstrap(): Promise<void> {
   const configService = new ConfigService();
@@ -35,8 +17,6 @@ async function bootstrap(): Promise<void> {
   
   const app = await NestFactory.create(AppModule, { rawBody: true });
   const config = app.get(ConfigService);
-
-  app.use(stripPrefix);
 
   app.enableCors(getCorsOptions(config as unknown as Parameters<typeof getCorsOptions>[0]));
 
