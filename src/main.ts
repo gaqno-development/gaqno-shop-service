@@ -12,8 +12,12 @@ function stripPrefix(req: Request, _res: Response, next: NextFunction): void {
     return;
   }
   if (req.path.startsWith("/shop")) {
-    const newPath = req.path.replace(/^\/shop/, "") || "/";
-    req.url = req.url.replace(/^\/shop/, "") || "/";
+    let newPath = req.path.replace(/^\/shop/, "");
+    if (newPath.startsWith("/v1")) {
+      newPath = newPath.replace(/^\/v1/, "");
+    }
+    newPath = newPath || "/";
+    req.url = req.url.replace(/^\/shop\/v1/, "") || req.url.replace(/^\/shop/, "") || "/";
     (req as Request & { path: string }).path = newPath;
   }
   next();
