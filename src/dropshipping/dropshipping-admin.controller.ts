@@ -24,12 +24,17 @@ import {
   ImportProductDto,
 } from "./dto/dropshipping.dto";
 
-@Controller("drp")
+@Controller("drops")
 export class DropshippingAdminController {
   constructor() {}
 
   @Get("test")
-  test(): { ok: boolean } {
-    return { ok: true };
+  test(): { ok: boolean; ts: number } {
+    return { ok: true, ts: Date.now() };
+  }
+
+  @Get("all")
+  all(): { route: string } {
+    return { route: "dropshipping" };
   }
 }

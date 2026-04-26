@@ -46,7 +46,15 @@ const ALIEXPRESS_ENV_KEYS = [
 ] as const;
 
 @Module({
-  imports: [],
+  imports: [
+    BullModule.registerQueueAsync({
+      name: DROPSHIPPING_QUEUE_NAME,
+      useFactory: (config: ConfigService) => ({
+        connection: parseRedisUrl(config.get<string>("REDIS_URL")),
+      }),
+      inject: [ConfigService],
+    }) as never,
+  ],
   controllers: [DropshippingAdminController, DropshippingQueueAdminController],
   providers: [
     MockSupplierProvider,
