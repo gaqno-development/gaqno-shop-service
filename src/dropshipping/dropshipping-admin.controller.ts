@@ -31,6 +31,11 @@ export class DropshippingAdminController {
     private readonly importer: DropshippingImportService,
   ) {}
 
+  @Get("test")
+  test(): { ok: boolean; timestamp: number } {
+    return { ok: true, timestamp: Date.now() };
+  }
+
   @Get("providers")
   listProviders(): DropshippingProvidersResponse {
     return { providers: this.catalog.availableProviders() };
