@@ -18,6 +18,11 @@ import {
 export class LoyaltyAdminController {
   constructor(private readonly adminService: LoyaltyAdminService) {}
 
+  @Get("debug")
+  debug(): { ok: boolean; ts: number } {
+    return { ok: true, ts: Date.now() };
+  }
+
   @Get("points")
   async getAllCustomerPoints(
     @Query("tenantId") tenantId: string,

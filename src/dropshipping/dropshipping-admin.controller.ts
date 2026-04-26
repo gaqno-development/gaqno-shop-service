@@ -19,7 +19,7 @@ import {
   ImportProductDto,
 } from "./dto/dropshipping.dto";
 
-@Controller("drops")
+@Controller("ship")
 export class DropshippingAdminController {
   constructor(
     private readonly catalog: DropshippingCatalogService,
