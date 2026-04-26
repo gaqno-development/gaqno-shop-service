@@ -1,7 +1,6 @@
 import { Module } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 import { ConfigService } from "@nestjs/config";
-import { DROPSHIPPING_QUEUE_NAME } from "@gaqno-development/types";
 import { resolveAliExpressProvider } from "./aliexpress-provider.factory";
 import { DropshippingAdminController } from "./dropshipping-admin.controller";
 import { DropshippingCatalogService } from "./dropshipping-catalog.service";
@@ -38,6 +37,8 @@ import {
 import { DropshippingQueueAdminService } from "./queue/dropshipping-queue-admin.service";
 import { DropshippingQueueAdminController } from "./queue/dropshipping-queue-admin.controller";
 
+const DROPSHIPPING_QUEUE_NAME = "dropshipping";
+
 const ALIEXPRESS_ENV_KEYS = [
   "ALIEXPRESS_APP_KEY",
   "ALIEXPRESS_APP_SECRET",
@@ -55,7 +56,7 @@ const ALIEXPRESS_ENV_KEYS = [
       inject: [ConfigService],
     }) as never,
   ],
-  controllers: [DropshippingAdminController],
+  controllers: [DropshippingAdminController, DropshippingQueueAdminController],
   providers: [
     MockSupplierProvider,
     DropshippingCatalogService,
