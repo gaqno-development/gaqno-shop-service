@@ -18,7 +18,6 @@ import type {
 import { getCurrentTenant } from "../common/tenant-context";
 import { DropshippingCatalogService } from "./dropshipping-catalog.service";
 import { DropshippingImportService } from "./dropshipping-import.service";
-import type { ImportedProductsQuery } from "./dropshipping-import.types";
 import {
   DropshippingSearchQueryDto,
   ImportedProductsQueryDto,
@@ -37,36 +36,6 @@ export class DropshippingAdminController {
     return { providers: this.catalog.availableProviders() };
   }
 
-  @Get("search/:providerCode")
-  search(
-    @Param("providerCode") providerCode: string,
-    @Query() query: DropshippingSearchQueryDto,
-  ): Promise<DropshippingSearchResponse> {
-    return this.catalog.search({ providerCode, ...query });
-  }
-
-  @Get(":providerCode/product/:externalId")
-  getDetails(
-    @Param("providerCode") providerCode: string,
-    @Param("externalId") externalId: string,
-  ): Promise<SupplierProductDetail> {
-    return this.catalog.getDetails(providerCode, externalId);
-  }
-
-  @Post("import")
-  async import(@Body() dto: ImportProductDto): Promise<DropshippingImportedProduct> {
-    const tenant = getCurrentTenant();
-    if (!tenant) throw new BadRequestException("Tenant context is required");
-    return this.importer.importProduct({
-      tenantId: tenant.tenantId,
-      providerCode: dto.providerCode,
-      externalId: dto.externalId,
-      categoryId: dto.categoryId,
-      overrideMarginPercent: dto.overrideMarginPercent,
-      makeActive: dto.makeActive ?? true,
-    });
-  }
-
   @Get("products")
   async listProducts(
     @Query() query: ImportedProductsQueryDto,
@@ -83,6 +52,20 @@ export class DropshippingAdminController {
       page: query.page ?? 1,
       pageSize: query.pageSize ?? 20,
       status: query.status,
+    });
+  }
+
+  @Post("import")
+  async import(@Body() dto: ImportProductDto): Promise<DropshippingImportedProduct> {
+    const tenant = getCurrentTenant();
+    if (!tenant) throw new BadRequestException("Tenant context is required");
+    return this.importer.importProduct({
+      tenantId: tenant.tenantId,
+      providerCode: dto.providerCode,
+      externalId: dto.externalId,
+      categoryId: dto.categoryId,
+      overrideMarginPercent: dto.overrideMarginPercent,
+      makeActive: dto.makeActive ?? true,
     });
   }
 
@@ -112,5 +95,21 @@ export class DropshippingAdminController {
     const tenant = getCurrentTenant();
     if (!tenant) throw new BadRequestException("Tenant context is required");
     await this.importer.bulkAction(tenant.tenantId, body.productIds, body.action);
+  }
+
+  @Get("search/:providerCode")
+  search(
+    @Param("providerCode") providerCode: string,
+    @Query() query: DropshippingSearchQueryDto,
+  ): Promise<DropshippingSearchResponse> {
+    return this.catalog.search({ providerCode, ...query });
+  }
+
+  @Get(":providerCode/product/:externalId")
+  getDetails(
+    @Param("providerCode") providerCode: string,
+    @Param("externalId") externalId: string,
+  ): Promise<SupplierProductDetail> {
+    return this.catalog.getDetails(providerCode, externalId);
   }
 }
