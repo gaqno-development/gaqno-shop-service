@@ -53,11 +53,11 @@ export class OrderReadService {
     };
   }
 
-  async findOne(tenantId: string, orderNumber: string) {
+  async findOne(tenantId: string, identifier: string) {
     const order = await this.db.query.orders.findFirst({
       where: and(
         eq(orders.tenantId, tenantId),
-        eq(orders.orderNumber, orderNumber),
+        eq(orders.orderNumber, identifier),
       ),
       with: {
         items: true,
@@ -72,10 +72,30 @@ export class OrderReadService {
         },
       },
     });
-    if (!order) {
-      throw new NotFoundException(`Order ${orderNumber} not found`);
+    if (order) return order;
+
+    const byId = await this.db.query.orders.findFirst({
+      where: and(
+        eq(orders.tenantId, tenantId),
+        eq(orders.id, identifier),
+      ),
+      with: {
+        items: true,
+        customer: {
+          columns: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    });
+    if (!byId) {
+      throw new NotFoundException(`Order ${identifier} not found`);
     }
-    return order;
+    return byId;
   }
 
   async getCustomerOrders(
