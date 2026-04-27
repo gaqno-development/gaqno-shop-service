@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { and, eq } from "drizzle-orm";
 import { dropshippingProviders } from "../database/schema";
 import type { ShopDatabase } from "../database/shop-database.type";
@@ -33,9 +33,12 @@ export class DropshippingTenantConfigRepository
       .limit(1);
     const row = rows[0];
     if (!row) {
-      throw new NotFoundException(
-        `No active dropshipping provider configured for tenant ${tenantId}`,
-      );
+      return {
+        tenantId,
+        providerCode: "aliexpress",
+        defaultMarginPercent: 80,
+        rounding: "ninety_nine",
+      };
     }
     return {
       tenantId: row.tenantId,
