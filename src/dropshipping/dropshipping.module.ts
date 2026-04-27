@@ -39,6 +39,13 @@ import { DropshippingQueueAdminController } from "./queue/dropshipping-queue-adm
 
 const DROPSHIPPING_QUEUE_NAME = "dropshipping";
 
+const ALIEXPRESS_ENV_KEYS = [
+  "ALIEXPRESS_APP_KEY",
+  "ALIEXPRESS_APP_SECRET",
+  "ALIEXPRESS_BASE_URL",
+  "ALIEXPRESS_TIMEOUT_MS",
+] as const;
+
 @Module({
   imports: [
     BullModule.registerQueueAsync({
