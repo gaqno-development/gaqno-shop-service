@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, or, sql } from "drizzle-orm";
 import { orders, orderStatusHistory } from "../database/schema";
 import { ShopDatabase } from "../database/shop-database.type";
 import { OrderQueryDto } from "./dto/order.dto";
@@ -57,7 +57,7 @@ export class OrderReadService {
     const order = await this.db.query.orders.findFirst({
       where: and(
         eq(orders.tenantId, tenantId),
-        eq(orders.orderNumber, identifier),
+        or(eq(orders.orderNumber, identifier), eq(orders.id, identifier)),
       ),
       with: {
         items: true,
@@ -72,30 +72,10 @@ export class OrderReadService {
         },
       },
     });
-    if (order) return order;
-
-    const byId = await this.db.query.orders.findFirst({
-      where: and(
-        eq(orders.tenantId, tenantId),
-        eq(orders.id, identifier),
-      ),
-      with: {
-        items: true,
-        customer: {
-          columns: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            phone: true,
-          },
-        },
-      },
-    });
-    if (!byId) {
+    if (!order) {
       throw new NotFoundException(`Order ${identifier} not found`);
     }
-    return byId;
+    return order;
   }
 
   async getCustomerOrders(

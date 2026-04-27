@@ -19,6 +19,8 @@ function parseRedisUrl(redisUrl?: string) {
   };
 }
 
+import type { DynamicModule } from "@nestjs/common";
+
 @Module({
   imports: [
     BullModule.registerQueueAsync({
@@ -27,7 +29,7 @@ function parseRedisUrl(redisUrl?: string) {
         connection: parseRedisUrl(config.get<string>("REDIS_URL")),
       }),
       inject: [ConfigService],
-    }) as never,
+    }) as DynamicModule,
     PaymentGatewaysModule,
   ],
   providers: [

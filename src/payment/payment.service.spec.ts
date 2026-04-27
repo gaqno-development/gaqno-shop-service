@@ -3,16 +3,17 @@ import { ConfigService } from "@nestjs/config";
 import { PaymentService } from "./payment.service";
 import { PaymentGatewaysService } from "../payment-gateways/payment-gateways.service";
 import { PaymentGatewayFactory } from "../payment-gateways/payment-gateway.factory";
+import type { ShopDatabase } from "../database/shop-database.type";
 
 const noopFactory = {} as PaymentGatewayFactory;
-const noopMailService = { sendOrderConfirmation: jest.fn() } as any;
+const noopMailService = { sendOrderConfirmation: jest.fn() } as unknown as PaymentService["orderMailService"];
 
-function makeService(overrides: { db?: any; config?: any; gateways?: any; factory?: any } = {}) {
-  const db = overrides.db ?? {} as any;
+function makeService(overrides: { db?: unknown; config?: ConfigService; gateways?: PaymentGatewaysService; factory?: PaymentGatewayFactory } = {}) {
+  const db = overrides.db ?? {};
   const config = overrides.config ?? { get: jest.fn() } as unknown as ConfigService;
   const gateways = overrides.gateways ?? {} as PaymentGatewaysService;
   const factory = overrides.factory ?? noopFactory;
-  return new PaymentService(db, config, gateways, factory, noopMailService);
+  return new PaymentService(db as ShopDatabase, config, gateways, factory, noopMailService);
 }
 
 describe("PaymentService", () => {

@@ -5,10 +5,12 @@ import {
   UnauthorizedException,
   NotFoundException,
   ConflictException,
+  Logger,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { orders, tenantPaymentGateways, tenants } from "../database/schema";
-import { and, eq } from "drizzle-orm";
+import type { Order } from "../database/schema";
+import { and, eq, or } from "drizzle-orm";
 import { CreatePaymentDto, PaymentMethod } from "./dto/payment.dto";
 import { PaymentGatewaysService } from "../payment-gateways/payment-gateways.service";
 import { PaymentGatewayFactory } from "../payment-gateways/payment-gateway.factory";
@@ -19,6 +21,7 @@ import type {
   PaymentStatusInfo,
 } from "../payment-gateways/payment-gateway.interface";
 import { OrderMailService } from "../mail/order-mail.service";
+import type { ShopDatabase } from "../database/shop-database.type";
 
 const PAID_WEBHOOK_STATUSES = new Set(["approved", "authorized"]);
 const IN_FLIGHT_PAYMENT_STATUSES = new Set([
@@ -139,8 +142,10 @@ function mapNormalizedToDbStatus(
 
 @Injectable()
 export class PaymentService {
+  private readonly logger = new Logger(PaymentService.name);
+
   constructor(
-    @Inject("DATABASE") private readonly db: any,
+    @Inject("DATABASE") private readonly db: ShopDatabase,
     private readonly configService: ConfigService,
     private readonly paymentGatewaysService: PaymentGatewaysService,
     private readonly paymentGatewayFactory: PaymentGatewayFactory,
@@ -213,7 +218,7 @@ export class PaymentService {
     );
   }
 
-  private resolvePayerEmail(order: any, dto: CreatePaymentDto): string {
+  private resolvePayerEmail(order: Order & { customer?: { email?: string } | null }, dto: CreatePaymentDto): string {
     const fromDto = dto.payerEmail?.trim();
     if (fromDto) return fromDto;
     const fromCustomer = order.customer?.email?.trim();
@@ -255,7 +260,7 @@ export class PaymentService {
   }
 
   private async createPixPaymentReal(
-    order: any,
+    order: Order & { customer?: { email?: string } | null },
     dto: CreatePaymentDto,
     credentials: GatewayCredentials,
     paymentGatewayId: string | undefined,
@@ -302,7 +307,7 @@ export class PaymentService {
 
   private async createCheckoutProPayment(
     tenantId: string,
-    order: any,
+    order: Order & { items?: Array<{ name: string; quantity: number; price: string }> },
     dto: CreatePaymentDto,
     credentials: GatewayCredentials,
     paymentGatewayId: string | undefined,
@@ -313,7 +318,7 @@ export class PaymentService {
       tenantId,
       order.orderNumber,
     );
-    const items: CheckoutItem[] = (order.items ?? []).map((item: any) => ({
+    const items: CheckoutItem[] = (order.items ?? []).map((item) => ({
       title: item.name,
       description: item.name,
       quantity: item.quantity,
@@ -463,7 +468,7 @@ export class PaymentService {
         this.orderMailService
           .sendOrderConfirmation(orderWithCustomer, orderWithCustomer.customer)
           .catch((err) => {
-            console.error(`Failed to send order confirmation email for ${existing.orderNumber}:`, err);
+            this.logger.error(`Failed to send order confirmation email for ${existing.orderNumber}`, err instanceof Error ? err.stack : String(err));
           });
       }
 
