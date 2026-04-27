@@ -1,8 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
-import {
-  DROPSHIPPING_QUEUE_NAME,
-  type DropshippingQueueJobPayload,
-} from "@gaqno-development/types";
+import type { DropshippingQueueJobPayload } from "@gaqno-development/types";
+
+const DROPSHIPPING_QUEUE_NAME = "dropshipping";
 
 export interface BullQueueLike {
   add(

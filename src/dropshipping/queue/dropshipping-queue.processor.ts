@@ -1,14 +1,13 @@
 import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Logger } from "@nestjs/common";
 import type { Job } from "bullmq";
-import {
-  DROPSHIPPING_QUEUE_NAME,
-  type DropshippingQueueJobPayload,
-} from "@gaqno-development/types";
+import type { DropshippingQueueJobPayload } from "@gaqno-development/types";
 import {
   OrderPlacementService,
   type PlacementOutcome,
 } from "./order-placement.service";
+
+const DROPSHIPPING_QUEUE_NAME = "dropshipping";
 
 @Processor(DROPSHIPPING_QUEUE_NAME)
 export class DropshippingQueueProcessor extends WorkerHost {
