@@ -18,6 +18,7 @@ import type {
   NormalizedPaymentStatus,
   PaymentStatusInfo,
 } from "../payment-gateways/payment-gateway.interface";
+import { OrderMailService } from "../mail/order-mail.service";
 
 const PAID_WEBHOOK_STATUSES = new Set(["approved", "authorized"]);
 const IN_FLIGHT_PAYMENT_STATUSES = new Set([
@@ -143,6 +144,7 @@ export class PaymentService {
     private readonly configService: ConfigService,
     private readonly paymentGatewaysService: PaymentGatewaysService,
     private readonly paymentGatewayFactory: PaymentGatewayFactory,
+    private readonly orderMailService: OrderMailService,
   ) {}
 
   async createPayment(tenantId: string, dto: CreatePaymentDto) {
@@ -452,6 +454,19 @@ export class PaymentService {
           paidAt: existing.paidAt ?? new Date(),
         })
         .where(eq(orders.id, existing.id));
+
+      const orderWithCustomer = await this.db.query.orders.findFirst({
+        where: eq(orders.id, existing.id),
+        with: { customer: true },
+      });
+      if (orderWithCustomer?.customer?.email) {
+        this.orderMailService
+          .sendOrderConfirmation(orderWithCustomer, orderWithCustomer.customer)
+          .catch((err) => {
+            console.error(`Failed to send order confirmation email for ${existing.orderNumber}:`, err);
+          });
+      }
+
       return { received: true, updated: true };
     }
 

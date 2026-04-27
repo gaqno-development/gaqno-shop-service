@@ -5,15 +5,22 @@ import { PaymentGatewaysService } from "../payment-gateways/payment-gateways.ser
 import { PaymentGatewayFactory } from "../payment-gateways/payment-gateway.factory";
 
 const noopFactory = {} as PaymentGatewayFactory;
+const noopMailService = { sendOrderConfirmation: jest.fn() } as any;
+
+function makeService(overrides: { db?: any; config?: any; gateways?: any; factory?: any } = {}) {
+  const db = overrides.db ?? {} as any;
+  const config = overrides.config ?? { get: jest.fn() } as unknown as ConfigService;
+  const gateways = overrides.gateways ?? {} as PaymentGatewaysService;
+  const factory = overrides.factory ?? noopFactory;
+  return new PaymentService(db, config, gateways, factory, noopMailService);
+}
 
 describe("PaymentService", () => {
   it("rejects webhook when secret is not configured", () => {
-    const db = {} as any;
     const config = {
       get: jest.fn().mockReturnValue(undefined),
     } as unknown as ConfigService;
-    const gateways = {} as PaymentGatewaysService;
-    const service = new PaymentService(db, config, gateways, noopFactory);
+    const service = makeService({ config });
 
     expect(() => service.assertWebhookSignature("invalid")).toThrow(
       UnauthorizedException,
@@ -21,12 +28,10 @@ describe("PaymentService", () => {
   });
 
   it("rejects webhook when signature is invalid", () => {
-    const db = {} as any;
     const config = {
       get: jest.fn().mockReturnValue("expected-signature"),
     } as unknown as ConfigService;
-    const gateways = {} as PaymentGatewaysService;
-    const service = new PaymentService(db, config, gateways, noopFactory);
+    const service = makeService({ config });
 
     expect(() => service.assertWebhookSignature("invalid")).toThrow(
       UnauthorizedException,
@@ -58,7 +63,7 @@ describe("PaymentService", () => {
         credentials: { access_token: "token" },
       }),
     } as unknown as PaymentGatewaysService;
-    const service = new PaymentService(db as any, config, gateways, noopFactory);
+    const service = makeService({ db, config, factory: noopFactory });
 
     const result = await service.createPayment("tenant-1", {
       orderNumber: "ORD-1",
@@ -83,13 +88,7 @@ describe("PaymentService", () => {
     const gateways = {
       getEnabledPaymentMethods,
     } as unknown as PaymentGatewaysService;
-    const config = { get: jest.fn() } as unknown as ConfigService;
-    const service = new PaymentService(
-      {} as any,
-      config,
-      gateways,
-      noopFactory,
-    );
+    const service = makeService({ factory: noopFactory, gateways });
     await expect(service.getEnabledPaymentMethods("t-1")).resolves.toEqual([
       "credit_card",
       "pix",
@@ -103,9 +102,7 @@ describe("PaymentService", () => {
       const db = {
         query: { orders: { findFirst: jest.fn().mockResolvedValue(null) } },
       } as any;
-      const config = { get: jest.fn() } as unknown as ConfigService;
-      const gateways = {} as PaymentGatewaysService;
-      const service = new PaymentService(db, config, gateways, noopFactory);
+      const service = makeService({ db });
 
       await expect(
         service.refundPayment("tenant-1", "ORD-999"),
@@ -125,9 +122,7 @@ describe("PaymentService", () => {
           },
         },
       } as any;
-      const config = { get: jest.fn() } as unknown as ConfigService;
-      const gateways = {} as PaymentGatewaysService;
-      const service = new PaymentService(db, config, gateways, noopFactory);
+      const service = makeService({ db });
 
       await expect(
         service.refundPayment("tenant-1", "ORD-1"),
@@ -147,9 +142,7 @@ describe("PaymentService", () => {
           },
         },
       } as any;
-      const config = { get: jest.fn() } as unknown as ConfigService;
-      const gateways = {} as PaymentGatewaysService;
-      const service = new PaymentService(db, config, gateways, noopFactory);
+      const service = makeService({ db });
 
       await expect(
         service.refundPayment("tenant-1", "ORD-1"),
@@ -175,7 +168,6 @@ describe("PaymentService", () => {
         update: jest.fn().mockReturnValue({ set: updateSet }),
       } as any;
 
-      const config = { get: jest.fn() } as unknown as ConfigService;
       const mockRefund = jest.fn().mockResolvedValue({
         refundId: "refund-456",
         status: "refunded",
@@ -193,7 +185,7 @@ describe("PaymentService", () => {
         }),
       } as unknown as PaymentGatewaysService;
 
-      const service = new PaymentService(db, config, gateways, factory);
+      const service = makeService({ db, factory, gateways });
       const result = await service.refundPayment("tenant-1", "ORD-1");
 
       expect(result.refundId).toBe("refund-456");
@@ -232,7 +224,6 @@ describe("PaymentService", () => {
         update: jest.fn().mockReturnValue({ set: updateSet }),
       } as any;
 
-      const config = { get: jest.fn() } as unknown as ConfigService;
       const mockRefund = jest.fn().mockResolvedValue({
         refundId: "refund-789",
         status: "refunded",
@@ -250,7 +241,7 @@ describe("PaymentService", () => {
         }),
       } as unknown as PaymentGatewaysService;
 
-      const service = new PaymentService(db, config, gateways, factory);
+      const service = makeService({ db, factory, gateways });
       await service.refundPayment("tenant-1", "ORD-1", 3000);
 
       expect(mockRefund).toHaveBeenCalledWith(
