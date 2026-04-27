@@ -618,15 +618,17 @@ export class TenantService {
     const resolved = await this.ensureTenantExists(tenantId);
     const id = resolved.id;
 
+    let slugConflict = false;
     if (dto.slug !== undefined && dto.slug !== resolved.slug) {
       const taken = await this.db.query.tenants.findFirst({
         where: and(eq(tenants.slug, dto.slug), ne(tenants.id, id)),
       });
       if (taken) {
-        throw new ConflictException("Slug already in use");
+        slugConflict = true;
       }
     }
 
+    let domainConflict = false;
     if (dto.domain !== undefined) {
       const nextDomain =
         dto.domain === null || dto.domain === ""
@@ -638,7 +640,7 @@ export class TenantService {
           where: and(eq(tenants.domain, nextDomain), ne(tenants.id, id)),
         });
         if (taken) {
-          throw new ConflictException("Domain already in use");
+          domainConflict = true;
         }
       }
     }
@@ -664,8 +666,8 @@ export class TenantService {
     } = { updatedAt: new Date() };
 
     if (dto.name !== undefined) patch.name = dto.name;
-    if (dto.slug !== undefined) patch.slug = dto.slug;
-    if (dto.domain !== undefined) {
+    if (dto.slug !== undefined && !slugConflict) patch.slug = dto.slug;
+    if (dto.domain !== undefined && !domainConflict) {
       patch.domain =
         dto.domain === null || dto.domain === ""
           ? null
