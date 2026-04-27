@@ -73,6 +73,12 @@ export async function applyBakeryTables(sql: SqlClient): Promise<void> {
   await ensureColumn(sql, "products", "recipe_id", "UUID");
   await ensureColumn(
     sql,
+    "products",
+    "enabled_customization_type_ids",
+    "JSONB DEFAULT '[]'::jsonb",
+  );
+  await ensureColumn(
+    sql,
     "order_items",
     "reference_image_url",
     "VARCHAR(500)",
@@ -169,6 +175,27 @@ export async function applyBakeryTables(sql: SqlClient): Promise<void> {
     )
   `;
   await sql`CREATE INDEX IF NOT EXISTS bakery_decorations_tenant_idx ON bakery_decorations(tenant_id)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS product_customization_types (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      name VARCHAR(100) NOT NULL,
+      slug VARCHAR(100) NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS customization_types_tenant_idx ON product_customization_types(tenant_id)`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS customization_types_tenant_slug_idx ON product_customization_types(tenant_id, slug)`;
+
+  await sql`
+    ALTER TABLE bakery_decorations
+      ADD COLUMN IF NOT EXISTS customization_type_id UUID
+      REFERENCES product_customization_types(id) ON DELETE SET NULL
+  `;
 
   await sql`
     CREATE TABLE IF NOT EXISTS bakery_product_decorations (
