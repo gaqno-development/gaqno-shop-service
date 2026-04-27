@@ -13,19 +13,19 @@ import {
 } from "../../database/schema";
 import { ShopDatabase } from "../../database/shop-database.type";
 import {
-  CreateAdminEventDto,
-  UpdateAdminEventDto,
-} from "./dto/admin-events.dto";
+  CreateStorefrontEventDto,
+  UpdateStorefrontEventDto,
+} from "./dto/storefront-events.dto";
 
-export interface AdminEventNotification {
+export interface StorefrontEventNotification {
   readonly tenantId: string;
   readonly event: "created" | "updated" | "deleted";
   readonly payload: AdminEvent | { id: string };
 }
 
 @Injectable()
-export class AdminEventsService implements OnModuleDestroy {
-  private readonly stream$ = new Subject<AdminEventNotification>();
+export class StorefrontEventsService implements OnModuleDestroy {
+  private readonly stream$ = new Subject<StorefrontEventNotification>();
 
   constructor(@Inject("DATABASE") private readonly db: ShopDatabase) {}
 
@@ -67,7 +67,7 @@ export class AdminEventsService implements OnModuleDestroy {
 
   async create(
     tenantId: string,
-    dto: CreateAdminEventDto,
+    dto: CreateStorefrontEventDto,
   ): Promise<AdminEvent> {
     const payload: NewAdminEvent = {
       tenantId,
@@ -92,7 +92,7 @@ export class AdminEventsService implements OnModuleDestroy {
   async update(
     tenantId: string,
     id: string,
-    dto: UpdateAdminEventDto,
+    dto: UpdateStorefrontEventDto,
   ): Promise<AdminEvent> {
     await this.findById(tenantId, id);
     const patch: Partial<NewAdminEvent> = {

@@ -4,16 +4,13 @@ import {
   ForbiddenException,
   Get,
   Put,
-  UseGuards,
 } from "@nestjs/common";
 import { SiteSettingsService } from "./site-settings.service";
 import { UpsertSiteSettingsDto } from "./dto/site-settings.dto";
 import { CurrentTenant } from "../../common/decorators/current-tenant.decorator";
 import { TenantContext } from "../../common/tenant-context";
-import { RequireFeature } from "../../common/decorators/require-feature.decorator";
-import { FeatureFlagGuard } from "../../common/guards/feature-flag.guard";
 
-@Controller("bakery/site-settings")
+@Controller("storefront/site-settings")
 export class SiteSettingsController {
   constructor(private readonly service: SiteSettingsService) {}
 
@@ -24,8 +21,6 @@ export class SiteSettingsController {
   }
 
   @Put()
-  @UseGuards(FeatureFlagGuard)
-  @RequireFeature("featureBakery")
   async upsert(
     @CurrentTenant() tenant: TenantContext,
     @Body() dto: UpsertSiteSettingsDto,

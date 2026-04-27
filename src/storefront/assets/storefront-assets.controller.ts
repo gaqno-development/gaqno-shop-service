@@ -3,21 +3,16 @@ import {
   ForbiddenException,
   Post,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { BakeryAssetsService } from "./bakery-assets.service";
+import { StorefrontAssetsService } from "./storefront-assets.service";
 import { CurrentTenant } from "../../common/decorators/current-tenant.decorator";
 import { TenantContext } from "../../common/tenant-context";
-import { RequireFeature } from "../../common/decorators/require-feature.decorator";
-import { FeatureFlagGuard } from "../../common/guards/feature-flag.guard";
 
-@Controller("bakery/assets")
-@UseGuards(FeatureFlagGuard)
-@RequireFeature("featureBakery")
-export class BakeryAssetsController {
-  constructor(private readonly service: BakeryAssetsService) {}
+@Controller("storefront/assets")
+export class StorefrontAssetsController {
+  constructor(private readonly service: StorefrontAssetsService) {}
 
   @Post()
   @UseInterceptors(FileInterceptor("file"))

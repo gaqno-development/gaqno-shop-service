@@ -12,24 +12,19 @@ import {
   Put,
   Query,
   Sse,
-  UseGuards,
 } from "@nestjs/common";
 import { Observable, filter, map } from "rxjs";
-import { AdminEventsService } from "./admin-events.service";
+import { StorefrontEventsService } from "./storefront-events.service";
 import {
-  CreateAdminEventDto,
-  UpdateAdminEventDto,
-} from "./dto/admin-events.dto";
+  CreateStorefrontEventDto,
+  UpdateStorefrontEventDto,
+} from "./dto/storefront-events.dto";
 import { CurrentTenant } from "../../common/decorators/current-tenant.decorator";
 import { TenantContext } from "../../common/tenant-context";
-import { RequireFeature } from "../../common/decorators/require-feature.decorator";
-import { FeatureFlagGuard } from "../../common/guards/feature-flag.guard";
 
-@Controller("bakery/calendar")
-@UseGuards(FeatureFlagGuard)
-@RequireFeature("featureBakery")
-export class AdminEventsController {
-  constructor(private readonly service: AdminEventsService) {}
+@Controller("storefront/calendar")
+export class StorefrontEventsController {
+  constructor(private readonly service: StorefrontEventsService) {}
 
   @Get("events")
   async list(
@@ -53,7 +48,7 @@ export class AdminEventsController {
   @Post("events")
   async create(
     @CurrentTenant() tenant: TenantContext,
-    @Body() dto: CreateAdminEventDto,
+    @Body() dto: CreateStorefrontEventDto,
   ) {
     this.assertTenant(tenant);
     return this.service.create(tenant.tenantId, dto);
@@ -64,7 +59,7 @@ export class AdminEventsController {
   async update(
     @CurrentTenant() tenant: TenantContext,
     @Param("id", ParseUUIDPipe) id: string,
-    @Body() dto: UpdateAdminEventDto,
+    @Body() dto: UpdateStorefrontEventDto,
   ) {
     this.assertTenant(tenant);
     return this.service.update(tenant.tenantId, id, dto);

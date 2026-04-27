@@ -1,4 +1,4 @@
-import { addBusinessDays, isBeforeDate } from "./business-days";
+import { addBusinessDays, isBeforeDate } from "../../shared/business-days";
 
 describe("addBusinessDays", () => {
   it("adds N calendar days when all are weekdays", () => {

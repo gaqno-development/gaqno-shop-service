@@ -15,9 +15,9 @@ const EVENT_TYPES = [
   "custom",
 ] as const;
 
-export type AdminEventType = (typeof EVENT_TYPES)[number];
+export type StorefrontEventType = (typeof EVENT_TYPES)[number];
 
-export class CreateAdminEventDto {
+export class CreateStorefrontEventDto {
   @IsString()
   @MinLength(1)
   title: string;
@@ -27,7 +27,7 @@ export class CreateAdminEventDto {
   description?: string;
 
   @IsEnum(EVENT_TYPES)
-  type: AdminEventType;
+  type: StorefrontEventType;
 
   @IsDateString()
   date: string;
@@ -53,7 +53,7 @@ export class CreateAdminEventDto {
   orderId?: string;
 }
 
-export class UpdateAdminEventDto {
+export class UpdateStorefrontEventDto {
   @IsOptional()
   @IsString()
   title?: string;
@@ -64,7 +64,7 @@ export class UpdateAdminEventDto {
 
   @IsOptional()
   @IsEnum(EVENT_TYPES)
-  type?: AdminEventType;
+  type?: StorefrontEventType;
 
   @IsOptional()
   @IsDateString()

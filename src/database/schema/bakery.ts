@@ -13,7 +13,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { tenants } from "./tenant";
-import { products } from "./catalog";
+import { products, customizationTypes } from "./catalog";
 import { orders, orderItems } from "./order";
 
 export const decorationTypeEnum = pgEnum("bakery_decoration_type", [
@@ -182,29 +182,6 @@ export const decorations = pgTable(
   }),
 );
 
-export const customizationTypes = pgTable(
-  "product_customization_types",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    tenantId: uuid("tenant_id")
-      .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
-    name: varchar("name", { length: 100 }).notNull(),
-    slug: varchar("slug", { length: 100 }).notNull(),
-    sortOrder: integer("sort_order").notNull().default(0),
-    isActive: boolean("is_active").notNull().default(true),
-    createdAt: timestamp("created_at").defaultNow(),
-    updatedAt: timestamp("updated_at").defaultNow(),
-  },
-  (table) => ({
-    tenantIdx: index("customization_types_tenant_idx").on(table.tenantId),
-    tenantSlugIdx: uniqueIndex("customization_types_tenant_slug_idx").on(
-      table.tenantId,
-      table.slug,
-    ),
-  }),
-);
-
 export const productDecorations = pgTable(
   "bakery_product_decorations",
   {
@@ -336,8 +313,6 @@ export type NewDecoration = typeof decorations.$inferInsert;
 export type ProductDecoration = typeof productDecorations.$inferSelect;
 export type OrderItemDecoration = typeof orderItemDecorations.$inferSelect;
 export type NewOrderItemDecoration = typeof orderItemDecorations.$inferInsert;
-export type CustomizationType = typeof customizationTypes.$inferSelect;
-export type NewCustomizationType = typeof customizationTypes.$inferInsert;
 export type ProductSize = typeof productSizes.$inferSelect;
 export type NewProductSize = typeof productSizes.$inferInsert;
 export type AdminEvent = typeof adminEvents.$inferSelect;

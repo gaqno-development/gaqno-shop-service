@@ -139,3 +139,30 @@ export type NewCategory = typeof categories.$inferInsert;
 export type Product = typeof products.$inferSelect;
 export type NewProduct = typeof products.$inferInsert;
 export type ProductVariation = typeof productVariations.$inferSelect;
+export type NewProductVariation = typeof productVariations.$inferInsert;
+
+export const customizationTypes = pgTable(
+  "product_customization_types",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 100 }).notNull(),
+    slug: varchar("slug", { length: 100 }).notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    tenantIdx: index("customization_types_tenant_idx").on(table.tenantId),
+    tenantSlugIdx: uniqueIndex("customization_types_tenant_slug_idx").on(
+      table.tenantId,
+      table.slug,
+    ),
+  }),
+);
+
+export type CustomizationType = typeof customizationTypes.$inferSelect;
+export type NewCustomizationType = typeof customizationTypes.$inferInsert;

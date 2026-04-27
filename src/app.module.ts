@@ -25,9 +25,9 @@ import { IngredientsModule } from "./bakery/ingredients/ingredients.module";
 import { DecorationsModule } from "./bakery/decorations/decorations.module";
 import { RecipesModule } from "./bakery/recipes/recipes.module";
 import { InventoryModule } from "./bakery/inventory/inventory.module";
-import { AdminEventsModule } from "./bakery/events/admin-events.module";
-import { SiteSettingsModule } from "./bakery/site-settings/site-settings.module";
-import { BakeryAssetsModule } from "./bakery/assets/bakery-assets.module";
+import { StorefrontSiteSettingsModule } from "./storefront/site-settings/site-settings.module";
+import { StorefrontEventsModule } from "./storefront/events/storefront-events.module";
+import { StorefrontAssetsModule } from "./storefront/assets/storefront-assets.module";
 import { CouponsModule } from "./coupons/coupons.module";
 import { PaymentGatewaysModule } from "./payment-gateways/payment-gateways.module";
 import { CheckoutModule } from "./checkout/checkout.module";
@@ -84,9 +84,9 @@ class DiagnosticController {
     DecorationsModule,
     RecipesModule,
     InventoryModule,
-    AdminEventsModule,
-    SiteSettingsModule,
-    BakeryAssetsModule,
+    StorefrontEventsModule,
+    StorefrontSiteSettingsModule,
+    StorefrontAssetsModule,
     CouponsModule,
     PaymentGatewaysModule,
   ],

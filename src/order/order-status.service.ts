@@ -1,14 +1,13 @@
-import { BadRequestException, Inject, Injectable } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, Optional } from "@nestjs/common";
 import { and, eq } from "drizzle-orm";
 import { orderItems, orders, orderStatusHistory } from "../database/schema";
 import { ShopDatabase } from "../database/shop-database.type";
 import { EventsService } from "../events/events.service";
-import { BakeryOrderLifecycleService } from "../bakery/order-lifecycle/bakery-order-lifecycle.service";
-import type { BakeryOrderStatus } from "../bakery/order-lifecycle/status-transitions";
+import { ORDER_LIFECYCLE_PLUGIN, OrderLifecyclePlugin } from "./order-lifecycle.plugin";
 import { UpdateOrderStatusDto } from "./dto/order.dto";
 import { OrderReadService } from "./order-read.service";
 
-const ORDER_STATUSES: readonly BakeryOrderStatus[] = [
+const ORDER_STATUSES = [
   "pending",
   "confirmed",
   "awaiting_decoration_review",
@@ -18,9 +17,11 @@ const ORDER_STATUSES: readonly BakeryOrderStatus[] = [
   "delivered",
   "cancelled",
   "refunded",
-];
+] as const;
 
-function isOrderStatus(value: string): value is BakeryOrderStatus {
+type OrderStatus = (typeof ORDER_STATUSES)[number];
+
+function isOrderStatus(value: string): value is OrderStatus {
   return (ORDER_STATUSES as readonly string[]).includes(value);
 }
 
@@ -30,7 +31,7 @@ export class OrderStatusService {
     @Inject("DATABASE") private readonly db: ShopDatabase,
     private readonly reader: OrderReadService,
     private readonly events: EventsService,
-    private readonly lifecycle: BakeryOrderLifecycleService,
+    @Optional() @Inject(ORDER_LIFECYCLE_PLUGIN) private readonly lifecycle?: OrderLifecyclePlugin,
   ) {}
 
   async updateStatus(
@@ -42,8 +43,10 @@ export class OrderStatusService {
       throw new BadRequestException(`Invalid order status: ${dto.status}`);
     }
     const order = await this.reader.findOne(tenantId, orderNumber);
-    const previous = (order.status ?? "pending") as BakeryOrderStatus;
-    this.lifecycle.assertTransition(previous, dto.status);
+    const previous = order.status ?? "pending";
+    if (this.lifecycle) {
+      this.lifecycle.assertTransition(previous, dto.status);
+    }
 
     await this.db
       .update(orders)
@@ -65,17 +68,19 @@ export class OrderStatusService {
       columns: { productId: true, quantity: true },
     });
 
-    await this.lifecycle.handleStatusChange({
-      tenantId,
-      orderId: order.id,
-      previous,
-      next: dto.status,
-      items: items
-        .filter((i): i is { productId: string; quantity: number } =>
-          Boolean(i.productId),
-        )
-        .map((i) => ({ productId: i.productId, quantity: i.quantity })),
-    });
+    if (this.lifecycle) {
+      await this.lifecycle.handleStatusChange({
+        tenantId,
+        orderId: order.id,
+        previous,
+        next: dto.status,
+        items: items
+          .filter((i): i is { productId: string; quantity: number } =>
+            Boolean(i.productId),
+          )
+          .map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      });
+    }
 
     const updated = await this.reader.findOne(tenantId, orderNumber);
     this.events.emitOrderUpdated(tenantId, updated);
@@ -84,7 +89,9 @@ export class OrderStatusService {
       orderNumber: updated.orderNumber,
       status: dto.status,
       previousStatus: previous,
-      decorationReview: this.lifecycle.describeDecorationReview(dto.status),
+      decorationReview: this.lifecycle
+        ? this.lifecycle.describeDecorationReview(dto.status)
+        : false,
     });
     this.events.emitDashboardStatsUpdate(tenantId);
     return updated;

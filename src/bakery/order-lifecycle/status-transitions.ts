@@ -39,13 +39,13 @@ export function canTransition(
 }
 
 export function shouldDeductIngredients(
-  previous: BakeryOrderStatus,
-  next: BakeryOrderStatus,
+  previous: string,
+  next: string,
 ): boolean {
   if (previous === next) return false;
   return (
-    INGREDIENT_DEDUCTION_TARGETS.includes(next) &&
-    !INGREDIENT_DEDUCTION_TARGETS.includes(previous)
+    INGREDIENT_DEDUCTION_TARGETS.includes(next as BakeryOrderStatus) &&
+    !INGREDIENT_DEDUCTION_TARGETS.includes(previous as BakeryOrderStatus)
   );
 }
 

@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import { and, eq, inArray } from "drizzle-orm";
 import {
   decorations,
@@ -9,7 +9,7 @@ import {
 } from "../database/schema";
 import { ShopDatabase } from "../database/shop-database.type";
 import { EventsService } from "../events/events.service";
-import { BakeryOrderLifecycleService } from "../bakery/order-lifecycle/bakery-order-lifecycle.service";
+import { ORDER_LIFECYCLE_PLUGIN, OrderLifecyclePlugin } from "./order-lifecycle.plugin";
 import { CreateOrderDto } from "./dto/order.dto";
 import { generateOrderNumber } from "./order-number.util";
 import { OrderReadService } from "./order-read.service";
@@ -50,7 +50,7 @@ export class OrderCreateService {
     @Inject("DATABASE") private readonly db: ShopDatabase,
     private readonly reader: OrderReadService,
     private readonly events: EventsService,
-    private readonly lifecycle: BakeryOrderLifecycleService,
+    @Optional() @Inject(ORDER_LIFECYCLE_PLUGIN) private readonly lifecycle?: OrderLifecyclePlugin,
   ) {}
 
   async create(tenantId: string, tenantSlug: string, dto: CreateOrderDto) {
@@ -64,7 +64,7 @@ export class OrderCreateService {
     dto: CreateOrderDto,
     totals: OrderTotals,
   ) {
-    if (dto.deliveryDate) {
+    if (dto.deliveryDate && this.lifecycle) {
       await this.lifecycle.validateLeadDaysForOrder({
         tenantId,
         deliveryDate: new Date(dto.deliveryDate),

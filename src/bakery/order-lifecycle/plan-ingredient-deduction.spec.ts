@@ -1,57 +1,57 @@
 import {
   mergeDeductionPlans,
   planDirectDeduction,
-  planRecipeDeduction,
-} from "./plan-ingredient-deduction";
+  planBatchDeduction,
+} from "../../shared/material-deduction";
 
-describe("planRecipeDeduction", () => {
+describe("planBatchDeduction", () => {
   it("returns empty for no items", () => {
-    expect(planRecipeDeduction([])).toEqual([]);
+    expect(planBatchDeduction([])).toEqual([]);
   });
 
-  it("scales ingredients by batches needed", () => {
-    const plan = planRecipeDeduction([
+  it("scales materials by batches needed", () => {
+    const plan = planBatchDeduction([
       {
-        productId: "cake",
+        productId: "product1",
         quantity: 4,
-        recipeYield: 2,
-        ingredients: [
-          { ingredientId: "flour", quantityPerRecipeYield: 500 },
-          { ingredientId: "sugar", quantityPerRecipeYield: 200 },
+        batchYield: 2,
+        materials: [
+          { materialId: "mat1", quantityPerBatch: 500 },
+          { materialId: "mat2", quantityPerBatch: 200 },
         ],
       },
     ]);
     expect(plan).toEqual([
-      { ingredientId: "flour", quantity: 1000 },
-      { ingredientId: "sugar", quantity: 400 },
+      { materialId: "mat1", quantity: 1000 },
+      { materialId: "mat2", quantity: 400 },
     ]);
   });
 
-  it("sums same ingredient across multiple items", () => {
-    const plan = planRecipeDeduction([
+  it("sums same material across multiple items", () => {
+    const plan = planBatchDeduction([
       {
         productId: "a",
         quantity: 1,
-        recipeYield: 1,
-        ingredients: [{ ingredientId: "flour", quantityPerRecipeYield: 100 }],
+        batchYield: 1,
+        materials: [{ materialId: "mat1", quantityPerBatch: 100 }],
       },
       {
         productId: "b",
         quantity: 1,
-        recipeYield: 1,
-        ingredients: [{ ingredientId: "flour", quantityPerRecipeYield: 50 }],
+        batchYield: 1,
+        materials: [{ materialId: "mat1", quantityPerBatch: 50 }],
       },
     ]);
-    expect(plan).toEqual([{ ingredientId: "flour", quantity: 150 }]);
+    expect(plan).toEqual([{ materialId: "mat1", quantity: 150 }]);
   });
 
   it("ignores items with zero or negative yield", () => {
-    const plan = planRecipeDeduction([
+    const plan = planBatchDeduction([
       {
         productId: "a",
         quantity: 2,
-        recipeYield: 0,
-        ingredients: [{ ingredientId: "flour", quantityPerRecipeYield: 100 }],
+        batchYield: 0,
+        materials: [{ materialId: "mat1", quantityPerBatch: 100 }],
       },
     ]);
     expect(plan).toEqual([]);
@@ -59,30 +59,30 @@ describe("planRecipeDeduction", () => {
 });
 
 describe("planDirectDeduction", () => {
-  it("multiplies direct ingredient quantity by order quantity", () => {
+  it("multiplies direct material quantity by order quantity", () => {
     const plan = planDirectDeduction([
       {
         productId: "pack",
         quantity: 3,
-        ingredients: [{ ingredientId: "wrap", quantityPerRecipeYield: 2 }],
+        materials: [{ materialId: "wrap", quantityPerBatch: 2 }],
       },
     ]);
-    expect(plan).toEqual([{ ingredientId: "wrap", quantity: 6 }]);
+    expect(plan).toEqual([{ materialId: "wrap", quantity: 6 }]);
   });
 });
 
 describe("mergeDeductionPlans", () => {
   it("adds quantities across plans", () => {
     const merged = mergeDeductionPlans(
-      [{ ingredientId: "x", quantity: 1.5 }],
+      [{ materialId: "x", quantity: 1.5 }],
       [
-        { ingredientId: "x", quantity: 2.25 },
-        { ingredientId: "y", quantity: 0.1 },
+        { materialId: "x", quantity: 2.25 },
+        { materialId: "y", quantity: 0.1 },
       ],
     );
     expect(merged).toEqual([
-      { ingredientId: "x", quantity: 3.75 },
-      { ingredientId: "y", quantity: 0.1 },
+      { materialId: "x", quantity: 3.75 },
+      { materialId: "y", quantity: 0.1 },
     ]);
   });
 });

@@ -9,7 +9,7 @@ import { TenantService } from "../../tenant/tenant.service";
 import { getCurrentTenant } from "../tenant-context";
 import {
   REQUIRE_FEATURE_KEY,
-  BakeryFeature,
+  FeatureKey,
 } from "../decorators/require-feature.decorator";
 
 @Injectable()
@@ -20,7 +20,7 @@ export class FeatureFlagGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const required = this.reflector.getAllAndOverride<BakeryFeature | undefined>(
+    const required = this.reflector.getAllAndOverride<FeatureKey | undefined>(
       REQUIRE_FEATURE_KEY,
       [context.getHandler(), context.getClass()],
     );

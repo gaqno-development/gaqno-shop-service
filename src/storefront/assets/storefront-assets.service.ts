@@ -20,8 +20,8 @@ export interface UploadedAsset {
 }
 
 @Injectable()
-export class BakeryAssetsService {
-  private readonly logger = new Logger(BakeryAssetsService.name);
+export class StorefrontAssetsService {
+  private readonly logger = new Logger(StorefrontAssetsService.name);
 
   constructor(private readonly config: ConfigService) {}
 
@@ -38,7 +38,7 @@ export class BakeryAssetsService {
       );
     }
     const maxBytes = Number(
-      this.config.get("BAKERY_ASSET_MAX_BYTES") ?? DEFAULT_MAX_BYTES,
+      this.config.get("STOREFRONT_ASSET_MAX_BYTES") ?? DEFAULT_MAX_BYTES,
     );
     if (file.size > maxBytes) {
       throw new BadRequestException(
@@ -59,7 +59,7 @@ export class BakeryAssetsService {
     const publicBase = this.resolvePublicBase();
     const url = `${publicBase}/${tenantId}/${filename}`;
     this.logger.debug(
-      `Saved bakery asset for tenant=${tenantId} filename=${filename} size=${file.size}`,
+      `Saved storefront asset for tenant=${tenantId} filename=${filename} size=${file.size}`,
     );
     return {
       url,
@@ -70,19 +70,19 @@ export class BakeryAssetsService {
   }
 
   private resolveStorageRoot(): string {
-    const override = this.config.get<string>("BAKERY_ASSET_DIR");
+    const override = this.config.get<string>("STOREFRONT_ASSET_DIR");
     if (override && override.length > 0) {
       return override;
     }
-    return path.join(process.cwd(), "uploads", "bakery");
+    return path.join(process.cwd(), "uploads", "storefront");
   }
 
   private resolvePublicBase(): string {
-    const override = this.config.get<string>("BAKERY_ASSET_PUBLIC_BASE_URL");
+    const override = this.config.get<string>("STOREFRONT_ASSET_PUBLIC_BASE_URL");
     if (override && override.length > 0) {
       return override.replace(/\/$/, "");
     }
-    return "/uploads/bakery";
+    return "/uploads/storefront";
   }
 
   private guessExtension(mimetype: string, original: string): string {

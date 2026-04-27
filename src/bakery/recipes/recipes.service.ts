@@ -14,9 +14,9 @@ import {
   ReplaceRecipeIngredientsDto,
 } from "./dto/recipes.dto";
 import {
-  computeRecipeCost,
-  RecipeCostBreakdown,
-} from "./recipe-costing";
+  computeCost,
+  type CostBreakdown,
+} from "../../shared/cost-calculation";
 
 @Injectable()
 export class RecipesService {
@@ -116,16 +116,16 @@ export class RecipesService {
   async getCost(
     tenantId: string,
     recipeId: string,
-  ): Promise<RecipeCostBreakdown> {
+  ): Promise<CostBreakdown> {
     const recipe = await this.findById(tenantId, recipeId);
     const links = await this.getIngredients(tenantId, recipeId);
     if (links.length === 0) {
-      return computeRecipeCost({
+      return computeCost({
         laborCost: recipe.laborCost,
         overheadCost: recipe.overheadCost,
         profitMarginPercent: recipe.profitMarginPercent,
         yieldQuantity: recipe.yieldQuantity,
-        ingredients: [],
+        materials: [],
       });
     }
     const ingredientRows = await this.db.query.ingredients.findMany({
@@ -140,12 +140,12 @@ export class RecipesService {
     const costLookup = new Map(
       ingredientRows.map((i) => [i.id, i.costPerUnit]),
     );
-    return computeRecipeCost({
+    return computeCost({
       laborCost: recipe.laborCost,
       overheadCost: recipe.overheadCost,
       profitMarginPercent: recipe.profitMarginPercent,
       yieldQuantity: recipe.yieldQuantity,
-      ingredients: links.map((l) => ({
+      materials: links.map((l) => ({
         quantity: l.quantity,
         costPerUnit: costLookup.get(l.ingredientId) ?? "0",
       })),

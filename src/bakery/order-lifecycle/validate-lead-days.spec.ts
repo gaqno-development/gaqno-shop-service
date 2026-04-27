@@ -1,7 +1,7 @@
 import {
   computeRequiredLeadDays,
   validateLeadDays,
-} from "./validate-lead-days";
+} from "../../shared/validate-lead-days";
 
 describe("computeRequiredLeadDays", () => {
   it("returns fallback when no products", () => {

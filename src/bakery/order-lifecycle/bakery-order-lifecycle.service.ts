@@ -16,41 +16,25 @@ import {
   shouldDeductIngredients,
 } from "./status-transitions";
 import {
-  LeadDayProduct,
   validateLeadDays,
-} from "./validate-lead-days";
-import {
-  ProductDirectIngredient,
-  ProductRecipeDeduction,
+  type LeadDayProduct,
+  type BatchDeduction,
+  type DirectDeduction,
   mergeDeductionPlans,
+  planBatchDeduction,
   planDirectDeduction,
-  planRecipeDeduction,
-} from "./plan-ingredient-deduction";
-
-export interface OrderItemForLifecycle {
-  readonly productId: string;
-  readonly quantity: number;
-}
-
-export interface LeadDayValidationRequest {
-  readonly tenantId: string;
-  readonly deliveryDate: Date;
-  readonly items: readonly OrderItemForLifecycle[];
-  readonly fallbackLeadDays?: number;
-}
-
-export interface StatusChangeContext {
-  readonly tenantId: string;
-  readonly orderId: string;
-  readonly previous: BakeryOrderStatus;
-  readonly next: BakeryOrderStatus;
-  readonly items: readonly OrderItemForLifecycle[];
-}
+} from "../../shared";
+import {
+  OrderLifecyclePlugin,
+  OrderItemForLifecycle,
+  LeadDayValidationRequest,
+  StatusChangeContext,
+} from "../../order/order-lifecycle.plugin";
 
 const DEFAULT_FALLBACK_LEAD_DAYS = 3;
 
 @Injectable()
-export class BakeryOrderLifecycleService {
+export class BakeryOrderLifecycleService implements OrderLifecyclePlugin {
   private readonly logger = new Logger(BakeryOrderLifecycleService.name);
 
   constructor(
@@ -64,8 +48,8 @@ export class BakeryOrderLifecycleService {
     return Boolean(flags?.featureBakery);
   }
 
-  assertTransition(previous: BakeryOrderStatus, next: BakeryOrderStatus): void {
-    if (!canTransition(previous, next)) {
+  assertTransition(previous: string, next: string): void {
+    if (!canTransition(previous as BakeryOrderStatus, next as BakeryOrderStatus)) {
       throw new BadRequestException(
         `Invalid status transition: ${previous} → ${next}`,
       );
@@ -120,8 +104,8 @@ export class BakeryOrderLifecycleService {
     );
   }
 
-  describeDecorationReview(next: BakeryOrderStatus): boolean {
-    return isDecorationReviewTransition(next);
+  describeDecorationReview(next: string): boolean {
+    return isDecorationReviewTransition(next as BakeryOrderStatus);
   }
 
   private async deductIngredientsForOrder(
@@ -156,7 +140,7 @@ export class BakeryOrderLifecycleService {
       if (entry.quantity <= 0) continue;
       try {
         await this.inventory.registerMovement(tenantId, {
-          ingredientId: entry.ingredientId,
+          ingredientId: entry.materialId,
           type: "out",
           quantity: entry.quantity.toString(),
           reason: `Order ${orderId}`,
@@ -164,7 +148,7 @@ export class BakeryOrderLifecycleService {
         });
       } catch (err) {
         this.logger.error(
-          `Failed to deduct ingredient ${entry.ingredientId} for order ${orderId}`,
+          `Failed to deduct ingredient ${entry.materialId} for order ${orderId}`,
           err instanceof Error ? err.stack : String(err),
         );
       }
@@ -176,7 +160,7 @@ export class BakeryOrderLifecycleService {
     items: readonly OrderItemForLifecycle[],
     productRows: readonly { id: string; recipeId: string | null }[],
     recipeIds: readonly string[],
-  ): Promise<readonly ReturnType<typeof planRecipeDeduction>[number][]> {
+  ): Promise<readonly ReturnType<typeof planBatchDeduction>[number][]> {
     if (recipeIds.length === 0) return [];
     const recipeRows = await this.db.query.recipes.findMany({
       where: and(
@@ -202,28 +186,28 @@ export class BakeryOrderLifecycleService {
     );
     const ingredientsByRecipe = new Map<
       string,
-      { ingredientId: string; quantityPerRecipeYield: number }[]
+      { materialId: string; quantityPerBatch: number }[]
     >();
     for (const row of recipeIngRows) {
       const list = ingredientsByRecipe.get(row.recipeId) ?? [];
       list.push({
-        ingredientId: row.ingredientId,
-        quantityPerRecipeYield: Number(row.quantity),
+        materialId: row.ingredientId,
+        quantityPerBatch: Number(row.quantity),
       });
       ingredientsByRecipe.set(row.recipeId, list);
     }
-    const planInput: ProductRecipeDeduction[] = [];
+    const planInput: BatchDeduction[] = [];
     for (const item of items) {
       const recipeId = productToRecipe.get(item.productId);
       if (!recipeId) continue;
       planInput.push({
         productId: item.productId,
         quantity: item.quantity,
-        recipeYield: recipeYields.get(recipeId) ?? 0,
-        ingredients: ingredientsByRecipe.get(recipeId) ?? [],
+        batchYield: recipeYields.get(recipeId) ?? 0,
+        materials: ingredientsByRecipe.get(recipeId) ?? [],
       });
     }
-    return planRecipeDeduction(planInput);
+    return planBatchDeduction(planInput);
   }
 
   private async buildDirectPlan(
@@ -241,22 +225,22 @@ export class BakeryOrderLifecycleService {
     if (rows.length === 0) return [];
     const byProduct = new Map<
       string,
-      { ingredientId: string; quantityPerRecipeYield: number }[]
+      { materialId: string; quantityPerBatch: number }[]
     >();
     for (const row of rows) {
       const list = byProduct.get(row.productId) ?? [];
       list.push({
-        ingredientId: row.ingredientId,
-        quantityPerRecipeYield: Number(row.quantity),
+        materialId: row.ingredientId,
+        quantityPerBatch: Number(row.quantity),
       });
       byProduct.set(row.productId, list);
     }
-    const planInput: ProductDirectIngredient[] = items
+    const planInput: DirectDeduction[] = items
       .filter((i) => byProduct.has(i.productId))
       .map((i) => ({
         productId: i.productId,
         quantity: i.quantity,
-        ingredients: byProduct.get(i.productId) ?? [],
+        materials: byProduct.get(i.productId) ?? [],
       }));
     return planDirectDeduction(planInput);
   }

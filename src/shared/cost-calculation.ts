@@ -1,16 +1,16 @@
-export interface RecipeCostInput {
+export interface CostInput {
   readonly laborCost: string | number;
   readonly overheadCost: string | number;
   readonly profitMarginPercent: string | number;
   readonly yieldQuantity: string | number;
-  readonly ingredients: ReadonlyArray<{
+  readonly materials: ReadonlyArray<{
     readonly quantity: string | number;
     readonly costPerUnit: string | number;
   }>;
 }
 
-export interface RecipeCostBreakdown {
-  readonly ingredientsCost: number;
+export interface CostBreakdown {
+  readonly materialsCost: number;
   readonly laborCost: number;
   readonly overheadCost: number;
   readonly totalCost: number;
@@ -30,21 +30,21 @@ function round2(value: number): number {
   return Math.round(value * TWO_DECIMALS) / TWO_DECIMALS;
 }
 
-export function computeRecipeCost(input: RecipeCostInput): RecipeCostBreakdown {
-  const ingredientsCost = input.ingredients.reduce(
+export function computeCost(input: CostInput): CostBreakdown {
+  const materialsCost = input.materials.reduce(
     (sum, i) => sum + toNumber(i.quantity) * toNumber(i.costPerUnit),
     0,
   );
   const laborCost = toNumber(input.laborCost);
   const overheadCost = toNumber(input.overheadCost);
-  const totalCost = ingredientsCost + laborCost + overheadCost;
+  const totalCost = materialsCost + laborCost + overheadCost;
   const yieldQty = Math.max(toNumber(input.yieldQuantity), 1);
   const marginPercent = toNumber(input.profitMarginPercent);
   const costPerYieldUnit = totalCost / yieldQty;
   const suggestedPrice = costPerYieldUnit * (1 + marginPercent / 100);
 
   return {
-    ingredientsCost: round2(ingredientsCost),
+    materialsCost: round2(materialsCost),
     laborCost: round2(laborCost),
     overheadCost: round2(overheadCost),
     totalCost: round2(totalCost),

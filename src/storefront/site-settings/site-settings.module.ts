@@ -9,4 +9,4 @@ import { TenantModule } from "../../tenant/tenant.module";
   controllers: [SiteSettingsController],
   exports: [SiteSettingsService],
 })
-export class SiteSettingsModule {}
+export class StorefrontSiteSettingsModule {}
