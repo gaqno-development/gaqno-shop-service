@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, Global } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { TenantService } from "./tenant.service";
@@ -15,6 +15,7 @@ import {
 import { aiServiceHttpClientProvider } from "./ai-service-client";
 import { TenantAssetsService } from "./tenant-assets.service";
 
+@Global()
 @Module({
   imports: [
     JwtModule.registerAsync({
