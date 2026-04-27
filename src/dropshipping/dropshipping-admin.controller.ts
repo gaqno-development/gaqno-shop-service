@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from "@nestjs/common";
 import type { DropshippingImportedProduct } from "@gaqno-development/types";
 import { getCurrentTenant } from "../common/tenant-context";
@@ -23,8 +24,10 @@ import {
 } from "./dto/dropshipping.dto";
 import { dropshippingProviders } from "../database/schema/dropshipping";
 import { eq, and } from "drizzle-orm";
+import { AuthGuard } from "../auth/auth.guard";
 
 @Controller("dropshipping/admin")
+@UseGuards(AuthGuard)
 export class DropshippingAdminController {
   constructor(
     private readonly catalog: DropshippingCatalogService,

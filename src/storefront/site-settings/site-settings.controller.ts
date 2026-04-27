@@ -4,13 +4,16 @@ import {
   ForbiddenException,
   Get,
   Put,
+  UseGuards,
 } from "@nestjs/common";
 import { SiteSettingsService } from "./site-settings.service";
 import { UpsertSiteSettingsDto } from "./dto/site-settings.dto";
 import { CurrentTenant } from "../../common/decorators/current-tenant.decorator";
 import { TenantContext } from "../../common/tenant-context";
+import { AuthGuard } from "../../auth/auth.guard";
 
 @Controller("storefront/site-settings")
+@UseGuards(AuthGuard)
 export class SiteSettingsController {
   constructor(private readonly service: SiteSettingsService) {}
 

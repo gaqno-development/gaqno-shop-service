@@ -6,6 +6,7 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  UseGuards,
 } from "@nestjs/common";
 import { LoyaltyAdminService } from "./loyalty-admin.service";
 import {
@@ -13,8 +14,10 @@ import {
   CreateTierRuleDto,
   UpdateTierRuleDto,
 } from "./dto/loyalty.dto";
+import { AuthGuard } from "../auth/auth.guard";
 
 @Controller("loyalty/admin")
+@UseGuards(AuthGuard)
 export class LoyaltyAdminController {
   constructor(private readonly adminService: LoyaltyAdminService) {}
 

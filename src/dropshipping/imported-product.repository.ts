@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, eq, desc, sql } from "drizzle-orm";
+import { and, eq, desc, sql, inArray } from "drizzle-orm";
 import { products } from "../database/schema";
 import type { ShopDatabase } from "../database/shop-database.type";
 import type {
@@ -211,7 +211,7 @@ export class ImportedProductRepository
       await this.db
         .delete(products)
         .where(
-          and(eq(products.tenantId, tenantId), sql`${products.id} IN (${productIds.join(",")})`),
+          and(eq(products.tenantId, tenantId), inArray(products.id, [...productIds])),
         );
     } else {
       const isActive = action === "activate";
@@ -219,7 +219,7 @@ export class ImportedProductRepository
         .update(products)
         .set({ isActive })
         .where(
-          and(eq(products.tenantId, tenantId), sql`${products.id} IN (${productIds.join(",")})`),
+          and(eq(products.tenantId, tenantId), inArray(products.id, [...productIds])),
         );
     }
   }

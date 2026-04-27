@@ -12,6 +12,7 @@ import {
   Put,
   Query,
   Sse,
+  UseGuards,
 } from "@nestjs/common";
 import { Observable, filter, map } from "rxjs";
 import { StorefrontEventsService } from "./storefront-events.service";
@@ -21,8 +22,10 @@ import {
 } from "./dto/storefront-events.dto";
 import { CurrentTenant } from "../../common/decorators/current-tenant.decorator";
 import { TenantContext } from "../../common/tenant-context";
+import { AuthGuard } from "../../auth/auth.guard";
 
 @Controller("storefront/calendar")
+@UseGuards(AuthGuard)
 export class StorefrontEventsController {
   constructor(private readonly service: StorefrontEventsService) {}
 

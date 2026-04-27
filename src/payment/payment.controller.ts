@@ -8,6 +8,7 @@ import {
   Query,
   Req,
   Res,
+  UseGuards,
 } from "@nestjs/common";
 import type { RawBodyRequest } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -17,6 +18,7 @@ import { CreatePaymentDto, RefundPaymentDto } from "./dto/payment.dto";
 import { CurrentTenant } from "../common/decorators/current-tenant.decorator";
 import { TenantContext } from "../common/tenant-context";
 import { requireTenantId } from "../common/tenant-guard";
+import { AuthGuard } from "../auth/auth.guard";
 
 @Controller("payments")
 export class PaymentController {
@@ -68,6 +70,7 @@ export class PaymentController {
   }
 
   @Post(":orderNumber/refund")
+  @UseGuards(AuthGuard)
   async refundPayment(
     @CurrentTenant() tenant: TenantContext,
     @Param("orderNumber") orderNumber: string,

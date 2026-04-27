@@ -11,6 +11,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { randomBytes, timingSafeEqual } from "crypto";
 import { PaymentGatewaysService } from "./payment-gateways.service";
 import {
   BootstrapPaymentGatewayDto,
@@ -29,7 +30,10 @@ export class PaymentGatewaysController {
     if (!expected) {
       throw new UnauthorizedException("Internal token is not configured");
     }
-    if (token !== expected) {
+    if (!token || token.length !== expected.length) {
+      throw new UnauthorizedException("Invalid internal token");
+    }
+    if (!timingSafeEqual(Buffer.from(token), Buffer.from(expected))) {
       throw new UnauthorizedException("Invalid internal token");
     }
   }

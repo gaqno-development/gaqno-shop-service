@@ -11,7 +11,6 @@ const ALLOWED_MIME = new Set([
   "image/png",
   "image/webp",
   "image/gif",
-  "image/svg+xml",
   "image/x-icon",
   "image/vnd.microsoft.icon",
 ]);

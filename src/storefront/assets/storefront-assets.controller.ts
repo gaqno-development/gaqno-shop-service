@@ -3,14 +3,17 @@ import {
   ForbiddenException,
   Post,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { StorefrontAssetsService } from "./storefront-assets.service";
 import { CurrentTenant } from "../../common/decorators/current-tenant.decorator";
 import { TenantContext } from "../../common/tenant-context";
+import { AuthGuard } from "../../auth/auth.guard";
 
 @Controller("storefront/assets")
+@UseGuards(AuthGuard)
 export class StorefrontAssetsController {
   constructor(private readonly service: StorefrontAssetsService) {}
 
