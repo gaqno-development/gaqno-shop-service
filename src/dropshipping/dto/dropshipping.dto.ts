@@ -16,6 +16,26 @@ import {
   type SupplierSortOption,
 } from "@gaqno-development/types";
 
+export class ConfigureProviderDto {
+  @IsString()
+  providerCode!: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(1000)
+  defaultMarginPercent?: number;
+
+  @IsOptional()
+  @IsIn(["none", "nearest", "ceil", "floor"])
+  roundingRule?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
 export class DropshippingSearchQueryDto
   implements Omit<DropshippingSearchRequest, "providerCode">
 {

@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  Inject,
   Param,
   Patch,
   Post,
@@ -11,20 +12,62 @@ import {
 } from "@nestjs/common";
 import type { DropshippingImportedProduct } from "@gaqno-development/types";
 import { getCurrentTenant } from "../common/tenant-context";
+import type { ShopDatabase } from "../database/shop-database.type";
 import { DropshippingCatalogService } from "./dropshipping-catalog.service";
 import { DropshippingImportService } from "./dropshipping-import.service";
 import {
+  ConfigureProviderDto,
   DropshippingSearchQueryDto,
   ImportedProductsQueryDto,
   ImportProductDto,
 } from "./dto/dropshipping.dto";
+import { dropshippingProviders } from "../database/schema/dropshipping";
+import { eq, and } from "drizzle-orm";
 
 @Controller("dropshipping/admin")
 export class DropshippingAdminController {
   constructor(
     private readonly catalog: DropshippingCatalogService,
     private readonly importer: DropshippingImportService,
+    @Inject("DATABASE") private readonly db: ShopDatabase,
   ) {}
+
+  @Post("providers")
+  async configureProvider(
+    @Body() dto: ConfigureProviderDto,
+  ): Promise<{ ok: boolean; providerCode: string; tenantId: string }> {
+    const tenant = getCurrentTenant();
+    if (!tenant) throw new BadRequestException("Tenant context is required");
+
+    await this.db
+      .insert(dropshippingProviders)
+      .values({
+        tenantId: tenant.tenantId,
+        providerCode: dto.providerCode,
+        defaultMarginPercent: dto.defaultMarginPercent?.toString() ?? "80.00",
+        roundingRule: dto.roundingRule ?? "none",
+        isActive: dto.isActive ?? true,
+      })
+      .onConflictDoUpdate({
+        target: [
+          dropshippingProviders.tenantId,
+          dropshippingProviders.providerCode,
+        ],
+        set: {
+          defaultMarginPercent:
+            dto.defaultMarginPercent?.toString() ?? "80.00",
+          roundingRule: dto.roundingRule ?? "none",
+          isActive: dto.isActive ?? true,
+          updatedAt: new Date(),
+        },
+      });
+
+    return {
+      ok: true,
+      providerCode: dto.providerCode,
+      tenantId: tenant.tenantId,
+    };
+  }
 
   @Get("test")
   test(): { ok: boolean; ts: number } {
