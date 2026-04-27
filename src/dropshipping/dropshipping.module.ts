@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, OnModuleInit } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 import { ConfigService } from "@nestjs/config";
 import { resolveAliExpressProvider } from "./aliexpress-provider.factory";
@@ -38,13 +38,6 @@ import { DropshippingQueueAdminService } from "./queue/dropshipping-queue-admin.
 import { DropshippingQueueAdminController } from "./queue/dropshipping-queue-admin.controller";
 
 const DROPSHIPPING_QUEUE_NAME = "dropshipping";
-
-const ALIEXPRESS_ENV_KEYS = [
-  "ALIEXPRESS_APP_KEY",
-  "ALIEXPRESS_APP_SECRET",
-  "ALIEXPRESS_BASE_URL",
-  "ALIEXPRESS_TIMEOUT_MS",
-] as const;
 
 @Module({
   imports: [
@@ -122,4 +115,8 @@ const ALIEXPRESS_ENV_KEYS = [
     OrderPlacementService,
   ],
 })
-export class DropshippingModule {}
+export class DropshippingModule implements OnModuleInit {
+  onModuleInit() {
+    console.log("✅ DropshippingModule initialized - routes registered at /v1/dropshipping/admin");
+  }
+}

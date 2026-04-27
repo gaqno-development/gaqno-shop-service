@@ -1,4 +1,4 @@
-import { Module, NestModule, MiddlewareConsumer } from "@nestjs/common";
+import { Module, NestModule, MiddlewareConsumer, Controller, Get } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { EventEmitterModule } from "@nestjs/event-emitter";
@@ -33,6 +33,18 @@ import { PaymentGatewaysModule } from "./payment-gateways/payment-gateways.modul
 import { CheckoutModule } from "./checkout/checkout.module";
 import { TenantContextMiddleware } from "./common/middleware/tenant-context.middleware";
 import { FeatureFlagGuard } from "./common/guards/feature-flag.guard";
+
+@Controller("_debug")
+class DiagnosticController {
+  @Get()
+  health() {
+    return {
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      dropshippingModule: "loaded",
+    };
+  }
+}
 
 @Module({
   imports: [
@@ -78,7 +90,7 @@ import { FeatureFlagGuard } from "./common/guards/feature-flag.guard";
     CouponsModule,
     PaymentGatewaysModule,
   ],
-  controllers: [],
+  controllers: [DiagnosticController],
   providers: [
     TenantContextMiddleware,
     FeatureFlagGuard,
