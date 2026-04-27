@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsObject,
   ValidateNested,
+  Min,
 } from "class-validator";
 import { Type, Transform } from "class-transformer";
 
@@ -125,4 +126,15 @@ export class PaymentWebhookDto {
   @IsOptional()
   @IsString()
   currency?: string;
+}
+
+export class RefundPaymentDto {
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  amountCents?: number;
+
+  @IsOptional()
+  @IsString()
+  reason?: string;
 }

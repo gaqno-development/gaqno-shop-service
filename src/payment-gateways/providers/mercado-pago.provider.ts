@@ -3,6 +3,7 @@ import * as crypto from "node:crypto";
 import {
   MercadoPagoConfig,
   Payment,
+  PaymentRefund,
   Preference,
   User,
 } from "mercadopago";
@@ -53,6 +54,13 @@ interface MpClients {
   };
   readonly user: {
     get: () => Promise<unknown>;
+  };
+  readonly refund: {
+    create: (args: {
+      payment_id: string | number;
+      body?: { amount?: number };
+      requestOptions?: { idempotencyKey?: string };
+    }) => Promise<unknown>;
   };
 }
 
@@ -149,6 +157,7 @@ export class MercadoPagoProvider implements IPaymentGateway {
     const payment = new Payment(config);
     const preference = new Preference(config);
     const user = new User(config);
+    const refund = new PaymentRefund(config);
     return {
       payment: {
         create: (args) =>
@@ -169,6 +178,12 @@ export class MercadoPagoProvider implements IPaymentGateway {
       },
       user: {
         get: () => user.get(),
+      },
+      refund: {
+        create: (args) =>
+          refund.create(
+            args as unknown as Parameters<typeof refund.create>[0],
+          ),
       },
     };
   }
@@ -354,10 +369,33 @@ export class MercadoPagoProvider implements IPaymentGateway {
   }
 
   async refund(input: RefundInput): Promise<RefundResult> {
+    this.assertAccessToken(input.credentials);
+    const clients = this.buildClients(input.credentials);
+    const body: Record<string, unknown> = {};
+    if (input.amountCents != null && input.amountCents > 0) {
+      body.amount = centsToReais(input.amountCents);
+    }
+    const response = (await clients.refund.create({
+      payment_id: input.providerPaymentId,
+      body: Object.keys(body).length > 0 ? body : undefined,
+      requestOptions: {
+        idempotencyKey: `refund-${input.providerPaymentId}-${input.amountCents ?? "full"}`,
+      },
+    })) as {
+      id: number | string;
+      status?: string;
+      amount?: number;
+    };
+
     return {
       provider: this.provider,
       providerPaymentId: input.providerPaymentId,
-      status: "refund_requested",
+      refundId: String(response.id),
+      status: response.status ?? "refunded",
+      amountCents:
+        typeof response.amount === "number"
+          ? Math.round(response.amount * 100)
+          : input.amountCents,
     };
   }
 

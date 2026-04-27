@@ -1,4 +1,4 @@
-import { UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PaymentService } from "./payment.service";
 import { PaymentGatewaysService } from "../payment-gateways/payment-gateways.service";
@@ -96,5 +96,169 @@ describe("PaymentService", () => {
       "boleto",
     ]);
     expect(getEnabledPaymentMethods).toHaveBeenCalledWith("t-1");
+  });
+
+  describe("refundPayment", () => {
+    it("throws NotFoundException when order does not exist", async () => {
+      const db = {
+        query: { orders: { findFirst: jest.fn().mockResolvedValue(null) } },
+      } as any;
+      const config = { get: jest.fn() } as unknown as ConfigService;
+      const gateways = {} as PaymentGatewaysService;
+      const service = new PaymentService(db, config, gateways, noopFactory);
+
+      await expect(
+        service.refundPayment("tenant-1", "ORD-999"),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("throws BadRequestException when payment is not approved", async () => {
+      const db = {
+        query: {
+          orders: {
+            findFirst: jest.fn().mockResolvedValue({
+              id: "order-1",
+              orderNumber: "ORD-1",
+              paymentStatus: "pending",
+              paymentExternalId: "ext-1",
+            }),
+          },
+        },
+      } as any;
+      const config = { get: jest.fn() } as unknown as ConfigService;
+      const gateways = {} as PaymentGatewaysService;
+      const service = new PaymentService(db, config, gateways, noopFactory);
+
+      await expect(
+        service.refundPayment("tenant-1", "ORD-1"),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("throws BadRequestException when paymentExternalId is missing", async () => {
+      const db = {
+        query: {
+          orders: {
+            findFirst: jest.fn().mockResolvedValue({
+              id: "order-1",
+              orderNumber: "ORD-1",
+              paymentStatus: "approved",
+              paymentExternalId: null,
+            }),
+          },
+        },
+      } as any;
+      const config = { get: jest.fn() } as unknown as ConfigService;
+      const gateways = {} as PaymentGatewaysService;
+      const service = new PaymentService(db, config, gateways, noopFactory);
+
+      await expect(
+        service.refundPayment("tenant-1", "ORD-1"),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("calls gateway refund and updates order status", async () => {
+      const updateWhere = jest.fn().mockResolvedValue(undefined);
+      const updateSet = jest.fn().mockReturnValue({ where: updateWhere });
+
+      const db = {
+        query: {
+          orders: {
+            findFirst: jest.fn().mockResolvedValue({
+              id: "order-1",
+              orderNumber: "ORD-1",
+              paymentStatus: "approved",
+              paymentExternalId: "mp-payment-123",
+              total: "100.00",
+            }),
+          },
+        },
+        update: jest.fn().mockReturnValue({ set: updateSet }),
+      } as any;
+
+      const config = { get: jest.fn() } as unknown as ConfigService;
+      const mockRefund = jest.fn().mockResolvedValue({
+        refundId: "refund-456",
+        status: "refunded",
+        amountCents: 10000,
+      });
+      const mockGateway = {
+        provider: "mercado_pago",
+        refund: mockRefund,
+      } as any;
+      const factory = { get: jest.fn().mockReturnValue(mockGateway) } as unknown as PaymentGatewayFactory;
+      const gateways = {
+        getPreferredGatewayForTenant: jest.fn().mockResolvedValue({
+          id: "gateway-1",
+          credentials: { access_token: "token" },
+        }),
+      } as unknown as PaymentGatewaysService;
+
+      const service = new PaymentService(db, config, gateways, factory);
+      const result = await service.refundPayment("tenant-1", "ORD-1");
+
+      expect(result.refundId).toBe("refund-456");
+      expect(result.status).toBe("refunded");
+      expect(result.amountCents).toBe(10000);
+      expect(result.paymentStatus).toBe("refunded");
+      expect(mockRefund).toHaveBeenCalledWith(
+        expect.objectContaining({
+          providerPaymentId: "mp-payment-123",
+          credentials: expect.objectContaining({ access_token: "token" }),
+        }),
+      );
+      expect(updateSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          paymentStatus: "refunded",
+        }),
+      );
+    });
+
+    it("supports partial refund with amountCents", async () => {
+      const updateWhere = jest.fn().mockResolvedValue(undefined);
+      const updateSet = jest.fn().mockReturnValue({ where: updateWhere });
+
+      const db = {
+        query: {
+          orders: {
+            findFirst: jest.fn().mockResolvedValue({
+              id: "order-1",
+              orderNumber: "ORD-1",
+              paymentStatus: "approved",
+              paymentExternalId: "mp-payment-123",
+              total: "100.00",
+            }),
+          },
+        },
+        update: jest.fn().mockReturnValue({ set: updateSet }),
+      } as any;
+
+      const config = { get: jest.fn() } as unknown as ConfigService;
+      const mockRefund = jest.fn().mockResolvedValue({
+        refundId: "refund-789",
+        status: "refunded",
+        amountCents: 3000,
+      });
+      const mockGateway = {
+        provider: "mercado_pago",
+        refund: mockRefund,
+      } as any;
+      const factory = { get: jest.fn().mockReturnValue(mockGateway) } as unknown as PaymentGatewayFactory;
+      const gateways = {
+        getPreferredGatewayForTenant: jest.fn().mockResolvedValue({
+          id: "gateway-1",
+          credentials: { access_token: "token" },
+        }),
+      } as unknown as PaymentGatewaysService;
+
+      const service = new PaymentService(db, config, gateways, factory);
+      await service.refundPayment("tenant-1", "ORD-1", 3000);
+
+      expect(mockRefund).toHaveBeenCalledWith(
+        expect.objectContaining({
+          providerPaymentId: "mp-payment-123",
+          amountCents: 3000,
+        }),
+      );
+    });
   });
 });

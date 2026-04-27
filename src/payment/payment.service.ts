@@ -282,6 +282,7 @@ export class PaymentService {
         paymentProvider: "mercado_pago",
         paymentGatewayId,
         paymentExternalId: result.paymentId,
+        paymentIdempotencyKey: `pix-${order.orderNumber}-${Date.now()}`,
         pixQrCode: result.qrCode,
         pixQrCodeBase64: result.qrCodeBase64,
         pixExpiresAt: result.expiresAt,
@@ -340,6 +341,7 @@ export class PaymentService {
         paymentGatewayId,
         paymentExternalId: result.paymentId,
         paymentExternalUrl: result.checkoutUrl,
+        paymentIdempotencyKey: `pref-${order.orderNumber}-${Date.now()}`,
       })
       .where(eq(orders.id, order.id));
 
@@ -475,6 +477,7 @@ export class PaymentService {
         .set({
           paymentStatus: "rejected",
           paymentExternalId: String(paymentId),
+          paymentFailureReason: paymentInfo.statusDetail ?? "Payment rejected",
           webhookLastReceivedAt: new Date(),
         })
         .where(eq(orders.id, existing.id));
@@ -599,5 +602,57 @@ export class PaymentService {
 
   async getEnabledPaymentMethods(tenantId: string) {
     return this.paymentGatewaysService.getEnabledPaymentMethods(tenantId);
+  }
+
+  async refundPayment(tenantId: string, orderNumber: string, amountCents?: number) {
+    const order = await this.db.query.orders.findFirst({
+      where: and(eq(orders.tenantId, tenantId), eq(orders.orderNumber, orderNumber)),
+    });
+
+    if (!order) {
+      throw new NotFoundException("Order not found");
+    }
+
+    if (order.paymentStatus !== "approved" && order.paymentStatus !== "authorized") {
+      throw new BadRequestException("Only approved or authorized payments can be refunded");
+    }
+
+    if (!order.paymentExternalId) {
+      throw new BadRequestException("Payment external ID not found");
+    }
+
+    const gateway = await this.paymentGatewaysService.getPreferredGatewayForTenant(
+      tenantId,
+      "mercado_pago",
+    );
+    const accessToken = gateway?.credentials?.access_token;
+    if (!accessToken || typeof accessToken !== "string") {
+      throw new BadRequestException("Payment not configured for this tenant");
+    }
+
+    const credentials = gateway.credentials as GatewayCredentials;
+    const mp = this.paymentGatewayFactory.get("mercado_pago");
+
+    const refundResult = await mp.refund({
+      providerPaymentId: order.paymentExternalId,
+      amountCents,
+      credentials,
+    });
+
+    const newPaymentStatus = amountCents != null ? "refunded" : "refunded";
+    await this.db
+      .update(orders)
+      .set({
+        paymentStatus: newPaymentStatus,
+        webhookLastReceivedAt: new Date(),
+      })
+      .where(eq(orders.id, order.id));
+
+    return {
+      refundId: refundResult.refundId,
+      status: refundResult.status,
+      amountCents: refundResult.amountCents,
+      paymentStatus: newPaymentStatus,
+    };
   }
 }

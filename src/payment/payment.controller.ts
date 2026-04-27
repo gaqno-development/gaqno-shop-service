@@ -1,8 +1,8 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
-  Body,
   Param,
   Post,
   Query,
@@ -13,7 +13,7 @@ import type { RawBodyRequest } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Request, Response } from "express";
 import { PaymentService } from "./payment.service";
-import { CreatePaymentDto } from "./dto/payment.dto";
+import { CreatePaymentDto, RefundPaymentDto } from "./dto/payment.dto";
 import { CurrentTenant } from "../common/decorators/current-tenant.decorator";
 import { TenantContext } from "../common/tenant-context";
 import { requireTenantId } from "../common/tenant-guard";
@@ -65,6 +65,19 @@ export class PaymentController {
   @Get("methods")
   async getPaymentMethods(@CurrentTenant() tenant: TenantContext) {
     return this.paymentService.getEnabledPaymentMethods(requireTenantId(tenant?.tenantId));
+  }
+
+  @Post(":orderNumber/refund")
+  async refundPayment(
+    @CurrentTenant() tenant: TenantContext,
+    @Param("orderNumber") orderNumber: string,
+    @Body() dto: RefundPaymentDto,
+  ) {
+    return this.paymentService.refundPayment(
+      requireTenantId(tenant?.tenantId),
+      orderNumber,
+      dto.amountCents,
+    );
   }
 
   @Post("webhook")

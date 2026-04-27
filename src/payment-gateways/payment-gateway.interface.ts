@@ -88,7 +88,9 @@ export interface RefundInput {
 export interface RefundResult {
   readonly provider: PaymentProvider;
   readonly providerPaymentId: string;
+  readonly refundId: string;
   readonly status: string;
+  readonly amountCents?: number;
 }
 
 export interface WebhookVerifyInput {

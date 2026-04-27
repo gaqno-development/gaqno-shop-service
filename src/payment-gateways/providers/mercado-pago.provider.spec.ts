@@ -29,6 +29,7 @@ interface MpStubs {
   paymentSearch?: jest.Mock;
   preferenceCreate?: jest.Mock;
   userGet?: jest.Mock;
+  refundCreate?: jest.Mock;
 }
 
 function makeProvider(stubs: MpStubs = {}): MercadoPagoProvider {
@@ -45,6 +46,9 @@ function makeProvider(stubs: MpStubs = {}): MercadoPagoProvider {
     },
     user: {
       get: stubs.userGet ?? jest.fn(),
+    },
+    refund: {
+      create: stubs.refundCreate ?? jest.fn(),
     },
   });
   return provider;
@@ -435,6 +439,65 @@ describe("MercadoPagoProvider", () => {
       expect(res.valid).toBe(false);
       expect(res.reason).toMatch(/access_token/i);
       expect(userGet).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("refund", () => {
+    it("calls MP refund API and returns refundId with status", async () => {
+      const refundCreate = jest.fn().mockResolvedValue({
+        id: 1150873004,
+        status: "refunded",
+        amount: 50,
+      });
+      const provider = makeProvider({ refundCreate });
+      const result = await provider.refund({
+        providerPaymentId: "987654321",
+        credentials: { access_token: "TEST-123" },
+      });
+
+      expect(result.provider).toBe("mercado_pago");
+      expect(result.providerPaymentId).toBe("987654321");
+      expect(result.refundId).toBe("1150873004");
+      expect(result.status).toBe("refunded");
+      expect(result.amountCents).toBe(5000);
+      expect(refundCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payment_id: "987654321",
+          requestOptions: expect.objectContaining({
+            idempotencyKey: "refund-987654321-full",
+          }),
+        }),
+      );
+    });
+
+    it("sends amount in reais for partial refund", async () => {
+      const refundCreate = jest.fn().mockResolvedValue({
+        id: 1150873005,
+        status: "refunded",
+        amount: 20,
+      });
+      const provider = makeProvider({ refundCreate });
+      await provider.refund({
+        providerPaymentId: "987654321",
+        amountCents: 2000,
+        credentials: { access_token: "TEST-123" },
+      });
+
+      const [call] = refundCreate.mock.calls;
+      expect(call[0].body).toEqual({ amount: 20 });
+      expect(call[0].requestOptions.idempotencyKey).toBe(
+        "refund-987654321-2000",
+      );
+    });
+
+    it("throws when credentials.access_token is missing", async () => {
+      const provider = makeProvider();
+      await expect(
+        provider.refund({
+          providerPaymentId: "123",
+          credentials: {},
+        }),
+      ).rejects.toThrow(/access_token/i);
     });
   });
 });
