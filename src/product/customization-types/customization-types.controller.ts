@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { CustomizationTypesService } from "./customization-types.service";
@@ -27,9 +28,18 @@ export class CustomizationTypesController {
   constructor(private readonly service: CustomizationTypesService) {}
 
   @Get()
-  async findAll(@CurrentTenant() tenant: TenantContext) {
+  async findAll(
+    @CurrentTenant() tenant: TenantContext,
+    @Query("includeInactive") includeInactive?: string,
+  ) {
     this.assertTenant(tenant);
-    return this.service.findAll(tenant.tenantId);
+    const all =
+      includeInactive === "1" ||
+      includeInactive === "true" ||
+      includeInactive === "yes";
+    return all
+      ? this.service.findAllWithInactive(tenant.tenantId)
+      : this.service.findAll(tenant.tenantId);
   }
 
   @Get(":id")
