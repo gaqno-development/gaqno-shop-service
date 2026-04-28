@@ -1,7 +1,6 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-ARG GAQNO_CACHE_BUST=1
 ARG NPM_TOKEN
 COPY package*.json ./
 COPY .npmrc* ./
@@ -12,6 +11,9 @@ RUN if [ -n "$NPM_TOKEN" ]; then echo "//npm.pkg.github.com/:_authToken=$NPM_TOK
 RUN npm config set fetch-timeout 1200000 && \
     npm config set fetch-retries 10 && \
     npm install --legacy-peer-deps --ignore-scripts --include=dev
+
+ARG GAQNO_CACHE_BUST
+RUN npm update @gaqno-development/backcore @gaqno-development/types --legacy-peer-deps 2>/dev/null || true
 
 COPY src ./src
 
