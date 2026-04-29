@@ -92,6 +92,16 @@ export class UpdateTenantProfileDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(120)
+  brandAppName?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  brandFontFamily?: string | null;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(255)
   adminDomain?: string | null;
 

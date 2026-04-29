@@ -611,6 +611,20 @@ export class TenantService {
         base.storefrontCopy = this.normalizeStorefrontCopy(mergedStorefrontCopy);
       }
     }
+    if (dto.brandAppName !== undefined) {
+      if (dto.brandAppName === null || dto.brandAppName === "") {
+        delete base.brandAppName;
+      } else {
+        base.brandAppName = String(dto.brandAppName).trim();
+      }
+    }
+    if (dto.brandFontFamily !== undefined) {
+      if (dto.brandFontFamily === null || dto.brandFontFamily === "") {
+        delete base.brandFontFamily;
+      } else {
+        base.brandFontFamily = String(dto.brandFontFamily).trim();
+      }
+    }
     return base;
   }
 
@@ -708,7 +722,9 @@ export class TenantService {
       dto.publicShopUrl !== undefined ||
       dto.analyticsMeasurementId !== undefined ||
       dto.analyticsEnabled !== undefined ||
-      dto.storefrontCopy !== undefined
+      dto.storefrontCopy !== undefined ||
+      dto.brandAppName !== undefined ||
+      dto.brandFontFamily !== undefined
     ) {
       patch.settings = this.mergeIntoTenantSettings(resolved.settings, dto);
     }
