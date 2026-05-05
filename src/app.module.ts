@@ -25,6 +25,7 @@ import { IngredientsModule } from "./bakery/ingredients/ingredients.module";
 import { DecorationsModule } from "./bakery/decorations/decorations.module";
 import { RecipesModule } from "./bakery/recipes/recipes.module";
 import { InventoryModule } from "./bakery/inventory/inventory.module";
+import { BakeryOrderLifecycleModule } from "./bakery/order-lifecycle/bakery-order-lifecycle.module";
 import { StorefrontSiteSettingsModule } from "./storefront/site-settings/site-settings.module";
 import { StorefrontEventsModule } from "./storefront/events/storefront-events.module";
 import { StorefrontAssetsModule } from "./storefront/assets/storefront-assets.module";
@@ -84,6 +85,7 @@ class DiagnosticController {
     DecorationsModule,
     RecipesModule,
     InventoryModule,
+    BakeryOrderLifecycleModule,
     StorefrontEventsModule,
     StorefrontSiteSettingsModule,
     StorefrontAssetsModule,

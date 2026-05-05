@@ -39,6 +39,7 @@ const BAKERY_TABLES = [
   "bakery_product_ingredients",
   "bakery_inventory_movements",
   "bakery_decorations",
+  "product_customization_types",
   "bakery_product_decorations",
   "bakery_order_item_decorations",
   "bakery_product_sizes",

@@ -1,26 +1,15 @@
-/** @type {import("jest").Config} */
+const base = require('@gaqno-development/backcore/jest-preset');
+
+/** @type {import('jest').Config} */
 module.exports = {
-  testEnvironment: "node",
-  rootDir: ".",
-  testMatch: [
-    "<rootDir>/test/**/*.e2e-spec.ts",
-    "<rootDir>/src/payment/**/*.spec.ts",
-    "<rootDir>/src/payment-gateways/**/*.spec.ts",
-    "<rootDir>/src/tenant/**/*.spec.ts",
+  ...base,
+  collectCoverageFrom: ['src/**/*.(t|j)s'],
+  coveragePathIgnorePatterns: [
+    '/node_modules/',
+    '/dist/',
+    'src/main.ts',
+    'src/database/migrate.ts',
+    'src/database/migrations/',
   ],
-  moduleFileExtensions: ["ts", "js", "json"],
-  transform: {
-    "^.+\\.ts$": [
-      "ts-jest",
-      {
-        tsconfig: {
-          module: "commonjs",
-          moduleResolution: "node",
-          esModuleInterop: true,
-          experimentalDecorators: true,
-          emitDecoratorMetadata: true,
-        },
-      },
-    ],
-  },
+  setupFiles: ['<rootDir>/test/jest.setup.ts'],
 };
