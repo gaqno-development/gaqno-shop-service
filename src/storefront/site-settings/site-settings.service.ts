@@ -5,7 +5,7 @@ import {
   SiteSettings,
   NewSiteSettings,
 } from "../../database/schema";
-import { ShopDatabase } from "../../database/shop-database.type";
+import type { ShopDatabase } from "../../database/shop-database.type";
 import { UpsertSiteSettingsDto } from "./dto/site-settings.dto";
 
 @Injectable()

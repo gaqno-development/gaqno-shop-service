@@ -5,7 +5,7 @@ import { Queue } from "bullmq";
 import type { Job } from "bullmq";
 import { and, eq, lt } from "drizzle-orm";
 import { orders } from "../../database/schema";
-import { ShopDatabase } from "../../database/shop-database.type";
+import type { ShopDatabase } from "../../database/shop-database.type";
 import type { PaymentReconciliationJobPayload } from "./payment-reconciliation.types";
 
 const STALE_PAYMENT_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes

@@ -9,7 +9,7 @@ import {
 import { FileInterceptor } from "@nestjs/platform-express";
 import { StorefrontAssetsService } from "./storefront-assets.service";
 import { CurrentTenant } from "../../common/decorators/current-tenant.decorator";
-import { TenantContext } from "../../common/tenant-context";
+import type { TenantContext } from "../../common/tenant-context";
 import { AuthGuard } from "../../auth/auth.guard";
 
 @Controller("storefront/assets")

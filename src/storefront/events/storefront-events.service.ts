@@ -11,7 +11,7 @@ import {
   AdminEvent,
   NewAdminEvent,
 } from "../../database/schema";
-import { ShopDatabase } from "../../database/shop-database.type";
+import type { ShopDatabase } from "../../database/shop-database.type";
 import {
   CreateStorefrontEventDto,
   UpdateStorefrontEventDto,

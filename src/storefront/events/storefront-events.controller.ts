@@ -21,7 +21,7 @@ import {
   UpdateStorefrontEventDto,
 } from "./dto/storefront-events.dto";
 import { CurrentTenant } from "../../common/decorators/current-tenant.decorator";
-import { TenantContext } from "../../common/tenant-context";
+import type { TenantContext } from "../../common/tenant-context";
 import { AuthGuard } from "../../auth/auth.guard";
 
 @Controller("storefront/calendar")

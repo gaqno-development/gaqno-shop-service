@@ -21,7 +21,7 @@ import {
   tenantFeatureFlags,
   tenants,
 } from "../database/schema";
-import { ShopDatabase } from "../database/shop-database.type";
+import type { ShopDatabase } from "../database/shop-database.type";
 import { presetForVertical } from "../common/vertical.constants";
 import {
   SsoTenantClient,

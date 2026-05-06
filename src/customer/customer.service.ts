@@ -1,7 +1,7 @@
 import { Injectable, Inject, ConflictException, NotFoundException } from "@nestjs/common";
 import { and, desc, eq, like, or, sql } from "drizzle-orm";
 import { customers, customerAddresses } from "../database/schema";
-import { ShopDatabase } from "../database/shop-database.type";
+import type { ShopDatabase } from "../database/shop-database.type";
 import { CreateCustomerDto, UpdateCustomerDto, CustomerQueryDto } from "./dto/customer.dto";
 
 @Injectable()

@@ -5,7 +5,7 @@ import {
   productVariations,
   products,
 } from "../database/schema";
-import { ShopDatabase } from "../database/shop-database.type";
+import type { ShopDatabase } from "../database/shop-database.type";
 import { OrderCreateService } from "../order/order-create.service";
 import { CreateOrderDto } from "../order/dto/order.dto";
 import { ShippingCalculatorService } from "../shipping/shipping-calculator.service";

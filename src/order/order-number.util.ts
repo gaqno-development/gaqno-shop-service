@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { orders, tenants } from "../database/schema";
-import { ShopDatabase } from "../database/shop-database.type";
+import type { ShopDatabase } from "../database/shop-database.type";
 
 const ORDER_NUMBER_PAD_LENGTH = 4;
 const PREFIX_FALLBACK_LENGTH = 3;

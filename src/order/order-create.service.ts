@@ -7,9 +7,10 @@ import {
   orderStatusHistory,
   orders,
 } from "../database/schema";
-import { ShopDatabase } from "../database/shop-database.type";
+import type { ShopDatabase } from "../database/shop-database.type";
 import { EventsService } from "../events/events.service";
-import { ORDER_LIFECYCLE_PLUGIN, OrderLifecyclePlugin } from "./order-lifecycle.plugin";
+import { ORDER_LIFECYCLE_PLUGIN } from "./order-lifecycle.plugin";
+import type { OrderLifecyclePlugin } from "./order-lifecycle.plugin";
 import { CreateOrderDto } from "./dto/order.dto";
 import { generateOrderNumber } from "./order-number.util";
 import { OrderReadService } from "./order-read.service";

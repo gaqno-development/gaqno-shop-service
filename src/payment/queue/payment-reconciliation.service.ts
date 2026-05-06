@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { eq } from "drizzle-orm";
 import { orders } from "../../database/schema";
-import { ShopDatabase } from "../../database/shop-database.type";
+import type { ShopDatabase } from "../../database/shop-database.type";
 import { PaymentGatewaysService } from "../../payment-gateways/payment-gateways.service";
 import { PaymentGatewayFactory } from "../../payment-gateways/payment-gateway.factory";
 import type { GatewayCredentials } from "../../payment-gateways/payment-gateway.interface";

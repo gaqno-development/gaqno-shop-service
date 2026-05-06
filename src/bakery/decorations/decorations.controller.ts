@@ -19,7 +19,7 @@ import {
   UpdateDecorationDto,
 } from "./dto/decorations.dto";
 import { CurrentTenant } from "../../common/decorators/current-tenant.decorator";
-import { TenantContext } from "../../common/tenant-context";
+import type { TenantContext } from "../../common/tenant-context";
 import { RequireFeature } from "../../common/decorators/require-feature.decorator";
 import { FeatureFlagGuard } from "../../common/guards/feature-flag.guard";
 

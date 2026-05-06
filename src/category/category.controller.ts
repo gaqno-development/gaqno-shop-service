@@ -12,7 +12,7 @@ import {
 import { CategoryService } from "./category.service";
 import { CreateCategoryDto, UpdateCategoryDto } from "./dto/category.dto";
 import { CurrentTenant } from "../common/decorators/current-tenant.decorator";
-import { TenantContext } from "../common/tenant-context";
+import type { TenantContext } from "../common/tenant-context";
 
 @Controller("categories")
 export class CategoryController {

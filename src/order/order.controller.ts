@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Body, Param, Query, ParseUUIDPipe, UseGuard
 import { OrderService } from "./order.service";
 import { CreateOrderDto, UpdateOrderStatusDto, OrderQueryDto } from "./dto/order.dto";
 import { CurrentTenant } from "../common/decorators/current-tenant.decorator";
-import { TenantContext } from "../common/tenant-context";
+import type { TenantContext } from "../common/tenant-context";
 import { AuthGuard } from "../auth/auth.guard";
 
 @Controller("orders")

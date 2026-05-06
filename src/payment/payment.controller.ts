@@ -12,11 +12,11 @@ import {
 } from "@nestjs/common";
 import type { RawBodyRequest } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { PaymentService } from "./payment.service";
 import { CreatePaymentDto, RefundPaymentDto } from "./dto/payment.dto";
 import { CurrentTenant } from "../common/decorators/current-tenant.decorator";
-import { TenantContext } from "../common/tenant-context";
+import type { TenantContext } from "../common/tenant-context";
 import { requireTenantId } from "../common/tenant-guard";
 import { AuthGuard } from "../auth/auth.guard";
 

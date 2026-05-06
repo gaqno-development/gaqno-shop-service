@@ -1,6 +1,6 @@
 import { Body, Controller, Post } from "@nestjs/common";
 import { CurrentTenant } from "../common/decorators/current-tenant.decorator";
-import { TenantContext } from "../common/tenant-context";
+import type { TenantContext } from "../common/tenant-context";
 import { requireTenantId } from "../common/tenant-guard";
 import { CheckoutService } from "./checkout.service";
 import { CheckoutRequestDto } from "./dto/checkout.dto";

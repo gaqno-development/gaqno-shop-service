@@ -1,7 +1,7 @@
 import { Injectable, Inject, NotFoundException } from "@nestjs/common";
 import { eq, and, like, desc, asc, SQL, sql, gte, lte } from "drizzle-orm";
 import { categories, products, Product, NewProduct } from "../database/schema";
-import { ShopDatabase } from "../database/shop-database.type";
+import type { ShopDatabase } from "../database/shop-database.type";
 import { EventsService } from "../events/events.service";
 import { LOW_STOCK_THRESHOLD } from "../events/constants";
 import {

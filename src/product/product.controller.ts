@@ -14,7 +14,7 @@ import {
 import { ProductService } from "./product.service";
 import { CreateProductDto, UpdateProductDto, ProductQueryDto } from "./dto/product.dto";
 import { CurrentTenant } from "../common/decorators/current-tenant.decorator";
-import { TenantContext } from "../common/tenant-context";
+import type { TenantContext } from "../common/tenant-context";
 
 @Controller("products")
 export class ProductController {

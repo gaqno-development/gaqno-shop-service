@@ -3,7 +3,8 @@ import { Request, Response, NextFunction } from "express";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { TenantService } from "../../tenant/tenant.service";
-import { tenantContextStorage, TenantContext } from "../tenant-context";
+import { tenantContextStorage } from "../tenant-context";
+import type { TenantContext } from "../tenant-context";
 import type { Tenant } from "../../database/schema";
 import { SsoTenantClient } from "../sso-tenant-client";
 

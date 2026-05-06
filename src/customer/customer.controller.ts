@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Body, Param, Query, ParseUUIDPipe } from "@
 import { CustomerService } from "./customer.service";
 import { CreateCustomerDto, UpdateCustomerDto, CustomerQueryDto } from "./dto/customer.dto";
 import { CurrentTenant } from "../common/decorators/current-tenant.decorator";
-import { TenantContext } from "../common/tenant-context";
+import type { TenantContext } from "../common/tenant-context";
 
 @Controller("customers")
 export class CustomerController {

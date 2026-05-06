@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, Headers } from 
 import { CartService } from "./cart.service";
 import { AddCartItemDto, UpdateCartItemDto } from "./dto/cart.dto";
 import { CurrentTenant } from "../common/decorators/current-tenant.decorator";
-import { TenantContext } from "../common/tenant-context";
+import type { TenantContext } from "../common/tenant-context";
 
 @Controller("cart")
 export class CartController {

@@ -1,7 +1,7 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { and, asc, eq } from "drizzle-orm";
 import { categories, Category, NewCategory } from "../database/schema";
-import { ShopDatabase } from "../database/shop-database.type";
+import type { ShopDatabase } from "../database/shop-database.type";
 import { CreateCategoryDto, UpdateCategoryDto } from "./dto/category.dto";
 
 @Injectable()

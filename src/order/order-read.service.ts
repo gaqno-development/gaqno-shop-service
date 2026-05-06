@@ -5,7 +5,7 @@ import {
 } from "@nestjs/common";
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import { orders, orderStatusHistory } from "../database/schema";
-import { ShopDatabase } from "../database/shop-database.type";
+import type { ShopDatabase } from "../database/shop-database.type";
 import { OrderQueryDto } from "./dto/order.dto";
 
 type OrderStatusLiteral = typeof orders.status._.data;

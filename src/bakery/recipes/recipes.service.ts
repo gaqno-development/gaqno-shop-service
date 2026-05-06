@@ -7,7 +7,7 @@ import {
   Recipe,
   NewRecipe,
 } from "../../database/schema";
-import { ShopDatabase } from "../../database/shop-database.type";
+import type { ShopDatabase } from "../../database/shop-database.type";
 import {
   CreateRecipeDto,
   UpdateRecipeDto,

@@ -1,6 +1,6 @@
 import { Controller, Get, Query } from "@nestjs/common";
 import { CurrentTenant } from "../common/decorators/current-tenant.decorator";
-import { TenantContext } from "../common/tenant-context";
+import type { TenantContext } from "../common/tenant-context";
 import { ReportService } from "./report.service";
 import { ReportSalesService } from "./report-sales.service";
 import { ReportCustomersService } from "./report-customers.service";
